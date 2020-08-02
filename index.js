@@ -104,10 +104,12 @@ class SourceQuery {
      * @param {number} port 
      * @param {number} timeout 
      */
-    constructor(address, port, timeout = 1000) {
+    constructor(address, port, timeout = 1000, autoclose = true) {
         this.address = address;
         this.port = port;
         this.timeout = timeout;
+        this.autoclose = autoclose;
+
         this.openQueries = 0;
 
         this.client = dgram.createSocket("udp4");
@@ -120,12 +122,7 @@ class SourceQuery {
     queryEnded() {
         this.openQueries--;
 
-        setTimeout(() => {
-            if (this.openQueries == 0) {
-                if (this.client.closed) return;
-                this.client.close();
-            }
-        }, 250);
+        if (this.autoclose) setTimeout(() => this.close(), 250);
     }
 
     /**
@@ -276,6 +273,13 @@ class SourceQuery {
                 }, failed => reject(failed));
             }, failed => reject(failed));
         });
+    }
+
+    close() {
+        if (this.openQueries == 0) {
+            if (this.client.closed) return;
+            this.client.close();
+        }
     }
 }
 

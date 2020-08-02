@@ -1,8 +1,9 @@
 class SourceQuery {
-    constructor(address: string, port: number, timeout?: number);
+    constructor(address: string, port: number, timeout?: number, autoclose?: boolean);
     getInfo(): Promise<ServerInfo>;
     getPlayers(): Promise<PlayerInfo[]>;
     getRules(): Promise<Record<string, string>>;
+    close(): void;
 }
 
 interface ServerInfo {
