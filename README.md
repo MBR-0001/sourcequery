@@ -13,12 +13,10 @@ Install with npm:
 Example usage:
 
 ```js
-var SourceQuery = require('sourcequery');
+const SourceQuery = require('sourcequery');
 
-var sq = new SourceQuery("192.168.100.2", 28015, 1000); // 1000ms timeout
-sq.open();
+const sq = new SourceQuery("192.168.100.2", 28015, 1000); // 1000ms timeout
 sq.getInfo().then(info => console.log('Server Info:', info));
 sq.getPlayers().then(players => console.log('Online Players:', players));
 sq.getRules().then(rules => console.log('Server Rules:', rules));
-sq.close();
 ```
