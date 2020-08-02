@@ -100,12 +100,12 @@ class SQUnpacker extends EventEmitter {
 
 class SourceQuery {
     /**
-     * @param {string} ip 
+     * @param {string} address 
      * @param {number} port 
      * @param {number} timeout 
      */
-    constructor(ip, port, timeout = 1000) {
-        this.ip = ip;
+    constructor(address, port, timeout = 1000) {
+        this.address = address;
         this.port = port;
         this.timeout = timeout;
         this.openQueries = 0;
@@ -137,7 +137,7 @@ class SourceQuery {
         return new Promise((resolve, reject) => {
             this.openQueries++;
 
-            this.client.send(buffer, 0, buffer.length, this.port, this.ip, err => {
+            this.client.send(buffer, 0, buffer.length, this.port, this.address, err => {
                 let giveUpTimer = null;
             
                 if (err) {

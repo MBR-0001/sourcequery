@@ -1,6 +1,6 @@
 const SourceQuery = require("./index");
 
-const query = new SourceQuery("192.223.30.9", 28070, 10000);
+const query = new SourceQuery("rust.kngsgaming.network", 28016, 10000);
 
 async function Test() {
     console.log(await query.getInfo());
