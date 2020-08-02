@@ -18,5 +18,8 @@
   "bugs": {
     "url": "https://github.com/MBR-0001/sourcequery/issues"
   },
-  "homepage": "https://github.com/MBR-0001/sourcequery#readme"
+  "homepage": "https://github.com/MBR-0001/sourcequery#readme",
+  "dependencies": {
+    "bufferpack": "0.0.6"
+  }
 }
