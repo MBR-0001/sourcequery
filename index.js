@@ -146,9 +146,9 @@ class SourceQuery {
                 
                 let relayResponse = buffer => {
                     if (buffer.length < 1) return;
-                    console.log(bp.unpack("<s", buffer)[0]);
+                    console.log(bp.unpack("<s", buffer)[0], responseCode);
                     if (bp.unpack("<s", buffer)[0] !== responseCode) return;
-                    
+
                     this.squnpacker.removeListener("message", relayResponse);
                     clearTimeout(giveUpTimer);
                     
