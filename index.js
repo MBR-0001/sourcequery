@@ -70,9 +70,11 @@ class SQUnpacker extends EventEmitter {
      * @param {Buffer} buffer 
      */
     readMessage(buffer) {
-        //this causes exceptions every now and then, idk why
+        //this causes an exception every now and then, idk why
         let header = bp.unpack("<i", buffer)[0];
         buffer = buffer.slice(4);
+
+        console.log(header);
 
         if (header == -1) {
             this.emit("message", buffer);
