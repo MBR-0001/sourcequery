@@ -114,7 +114,7 @@ class SourceQuery {
         this.client.on("error", () => {});
         this.client.on("close", () => this.client.closed = true);
 
-        this.squnpacker = new SQUnpacker(this.client);
+        this.squnpacker = new SQUnpacker(this.client, this.timeout);
     }
 
     queryEnded() {

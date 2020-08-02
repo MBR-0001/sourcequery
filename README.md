@@ -6,7 +6,7 @@ https://www.npmjs.com/package/sourcequery but it doesn't suck
 
 Install with npm:
 
-```npm install mbr-0001/sourcequery```
+    npm install mbr-0001/sourcequery
 
 Example usage:
 
