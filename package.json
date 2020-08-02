@@ -1,17 +1,19 @@
 {
   "name": "sourcequery",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "https://www.npmjs.com/package/sourcequery but it doesn't suck",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node test.js"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/MBR-0001/sourcequery.git"
   },
   "keywords": [
-    "sourcequery"
+    "sourcequery",
+    "steam",
+    "server info"
   ],
   "author": "MBR",
   "license": "ISC",
