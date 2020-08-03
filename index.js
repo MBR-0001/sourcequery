@@ -167,11 +167,14 @@ class SourceQuery {
 
     /**
      * @param {string} reqType 
+     * @param {string} allowed_response 
      * @returns {Promise<number>}
      */
-    getChallengeKey(reqType) {
+    getChallengeKey(reqType, allowed_response = "") {
         return new Promise((resolve, reject) => {
-            this.send(bp.pack("<isi", [-1, reqType, -1]), [ids.S2A_SERVERQUERY_GETCHALLENGE, reqType]).then(buffer => {
+            let r = [ids.S2A_SERVERQUERY_GETCHALLENGE];
+            if (allowed_response) r.push(allowed_response);
+            this.send(bp.pack("<isi", [-1, reqType, -1]), r).then(buffer => {
                 resolve(bp.unpack("<i", buffer)[0]);
             }, failed => reject(failed));
         });
@@ -242,7 +245,7 @@ class SourceQuery {
 
     getPlayers() {
         return new Promise((resolve, reject) => {
-            this.getChallengeKey(ids.A2S_PLAYER).then(key => {
+            this.getChallengeKey(ids.A2S_PLAYER, ids.S2A_PLAYER).then(key => {
                 this.send(bp.pack("<isi", [-1, ids.A2S_PLAYER, key]), [ids.S2A_PLAYER]).then(buffer => {
                     let playerCount = bp.unpack("<b", buffer)[0];
                     let players = [];
@@ -260,7 +263,7 @@ class SourceQuery {
 
     getRules() {
         return new Promise((resolve, reject) => {
-            this.getChallengeKey(ids.A2S_RULES).then(key => {
+            this.getChallengeKey(ids.A2S_RULES, ids.S2A_RULES).then(key => {
                 this.send(bp.pack("<isi", [-1, ids.A2S_RULES, key]), [ids.S2A_RULES]).then(buffer => {
                     let ruleCount = bp.unpack("<h", buffer)[0];
                     let rules = {};
