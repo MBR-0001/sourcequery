@@ -290,23 +290,21 @@ class SourceQuery {
 
     getPlayers() {
         return new Promise((resolve, reject) => {
-            this.getChallengeKey(ids.A2S_PLAYER, ids.S2A_PLAYER).then(key => {
-                this.sendRaw(Buffer.from([-1, -1, -1, -1, ids.A2S_PLAYER.charCodeAt(0), -1, -1, -1, -1])).then(buffer => {
-                    let response_type = String.fromCharCode(buffer[0]);
-                    console.log("first got " + response_type);
-                }, failed => reject(failed));
-                this.send(bp.pack("<isi", [-1, ids.A2S_PLAYER, key]), [ids.S2A_PLAYER]).then(buffer => {
-                    let playerCount = bp.unpack("<b", buffer)[0];
-                    let players = [];
-                    let offset = 1;
-                    for (let i = 0; i < playerCount; i++) {
-                        let p = bp.unpack("<bSif", buffer, offset);
-                        players.push(this.combine(["index", "name", "score", "online"], p));
-                        offset += bp.calcLength("<bSif", p);
-                    }
-                    resolve(players);
-                }, failed => reject(failed));
+            this.sendRaw(Buffer.from([-1, -1, -1, -1, ids.A2S_PLAYER.charCodeAt(0), -1, -1, -1, -1])).then(buffer => {
+                let response_type = String.fromCharCode(buffer[0]);
+                console.log("first got " + response_type);
             }, failed => reject(failed));
+            /*this.send(bp.pack("<isi", [-1, ids.A2S_PLAYER, key]), [ids.S2A_PLAYER]).then(buffer => {
+                let playerCount = bp.unpack("<b", buffer)[0];
+                let players = [];
+                let offset = 1;
+                for (let i = 0; i < playerCount; i++) {
+                    let p = bp.unpack("<bSif", buffer, offset);
+                    players.push(this.combine(["index", "name", "score", "online"], p));
+                    offset += bp.calcLength("<bSif", p);
+                }
+                resolve(players);
+            }, failed => reject(failed));*/
         });
     }
 
