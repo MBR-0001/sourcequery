@@ -74,8 +74,6 @@ class SQUnpacker extends EventEmitter {
         let header = bp.unpack("<i", buffer)[0];
         buffer = buffer.slice(4);
 
-        console.log(header);
-
         if (header == -1) {
             this.emit("message", buffer);
             return;
@@ -149,10 +147,7 @@ class SourceQuery {
                  */
                 let relayResponse = buffer => {
                     if (buffer.length < 1) return;
-                    if (responseCode != String.fromCharCode(buffer[0])) {
-                        console.log("Response code mismatch, expected ", responseCode, " but got ", String.fromCharCode(buffer[0]));
-                        return;
-                    }
+                    if (responseCode != String.fromCharCode(buffer[0])) return;
 
                     this.unpacker.removeListener("message", relayResponse);
                     clearTimeout(giveUpTimer);
@@ -264,18 +259,33 @@ class SourceQuery {
     }
 
     getPlayers() {
+        // eslint-disable-next-line no-async-promise-executor
+        return new Promise(async (resolve, reject) => {
+            let attempts = 0;
+            let data = null;
+
+            do {
+                data = await this._getPlayers().catch(() => {});
+            }
+            while (attempts < 10 && !data);
+
+            if (!data) reject("timeout");
+            else resolve(data);
+        });
+    }
+
+    /**
+     * @returns {Promise<{}[]>}
+     */
+    _getPlayers() {
         return new Promise((resolve, reject) => {
             this.sendRaw(bp.pack("<isi", [-1, ids.A2S_PLAYER, -1])).then(buffer => {
                 let header = String.fromCharCode(buffer[0]);
                 buffer = buffer.slice(1);
 
                 if (header == ids.S2A_SERVERQUERY_GETCHALLENGE) {
-                    console.log(buffer);
                     let key = bp.unpack("<i", buffer)[0];
-                    console.log("Got key " + key);
-                    let buf = bp.pack("<isi", [-1, ids.A2S_PLAYER, key]);
-                    console.log(buf);
-                    this.send(buf, ids.S2A_PLAYER).then(player_buffer => {
+                    this.send(bp.pack("<isi", [-1, ids.A2S_PLAYER, key]), ids.S2A_PLAYER).then(player_buffer => {
                         resolve(Util.parsePlayerBuffer(player_buffer));
                     }, failed => reject(failed));
                 }
@@ -288,23 +298,34 @@ class SourceQuery {
     }
 
     getRules() {
+        // eslint-disable-next-line no-async-promise-executor
+        return new Promise(async (resolve, reject) => {
+            let attempts = 0;
+            let data = null;
+
+            do {
+                data = await this._getRules().catch(() => {});
+            }
+            while (attempts < 10 && !data);
+
+            if (!data) reject("timeout");
+            else resolve(data);
+        });
+    }
+
+    _getRules() {
         return new Promise((resolve, reject) => {
-            console.log("Sending rules #1");
             this.sendRaw(bp.pack("<isi", [-1, ids.A2S_RULES, -1])).then(buffer => {
                 let header = String.fromCharCode(buffer[0]);
                 buffer = buffer.slice(1);
-                console.log("Got rules #1, header: " + header);
 
                 if (header == ids.S2A_SERVERQUERY_GETCHALLENGE) {
                     let key = bp.unpack("<i", buffer)[0];
-                    console.log("Sending rules #2");
                     this.send(bp.pack("<isi", [-1, ids.A2S_RULES, key]), ids.S2A_RULES).then(rules_buffer => {
-                        console.log("Got rules #2, buffer: " + rules_buffer);
                         resolve(Util.parseRulesBuffer(rules_buffer));
                     }, failed => reject(failed));
                 }
                 else if (header == ids.S2A_RULES) {
-                    console.log("Got rules else, buffer: " + buffer);
                     return resolve(Util.parseRulesBuffer(buffer));
                 }
                 else throw new Error("Invalid header @ getRules: " + header);
