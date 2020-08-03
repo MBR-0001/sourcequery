@@ -147,7 +147,10 @@ class SourceQuery {
                  */
                 let relayResponse = buffer => {
                     if (buffer.length < 1) return;
-                    if (responseCode != String.fromCharCode(buffer[0])) return;
+                    if (responseCode != String.fromCharCode(buffer[0])) {
+                        console.log("Response code mismatch, expected ", responseCode, " but got ", String.fromCharCode(buffer[0]));
+                        return;
+                    }
 
                     this.unpacker.removeListener("message", relayResponse);
                     clearTimeout(giveUpTimer);
