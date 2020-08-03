@@ -71,7 +71,13 @@ class SQUnpacker extends EventEmitter {
      */
     readMessage(buffer) {
         //this causes an exception every now and then, idk why
-        let header = bp.unpack("<i", buffer)[0];
+        let unpacked = bp.unpack("<i", buffer);
+        if (!unpacked) {
+            console.log(buffer);
+            return;
+        }
+
+        let header = unpacked[0];
         buffer = buffer.slice(4);
 
         if (header == -1) {
