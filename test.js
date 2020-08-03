@@ -1,11 +1,10 @@
 const SourceQuery = require("./index");
 
 async function Test() {
-    const query = new SourceQuery("rust.kngsgaming.network", 28016, 10000, true);
-    await query.getPlayers();
-    await query.getRules();
-    await query.getInfo();
-    query.close();
+    const query = new SourceQuery("164.132.207.129", 28065, 10000, true);
+    console.log((await query.getPlayers()).length);
+    console.log(await query.getRules());
+    console.log(await query.getInfo());
 }
 
 try { Test(); }

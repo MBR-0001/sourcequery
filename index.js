@@ -127,7 +127,7 @@ class SourceQuery {
 
     /**
      * @param {Buffer} buffer 
-     * @param {string[]} responseCode 
+     * @param {string} responseCode 
      * @returns {Promise<Buffer>}
      */
     send(buffer, responseCode) {
@@ -147,9 +147,7 @@ class SourceQuery {
                  */
                 let relayResponse = buffer => {
                     if (buffer.length < 1) return;
-                    let response_type = String.fromCharCode(buffer[0]);
-                    console.log("got " + response_type + ", expected " + responseCode);
-                    if (!responseCode.includes(response_type)) return;
+                    if (responseCode != String.fromCharCode(buffer[0])) return;
 
                     this.unpacker.removeListener("message", relayResponse);
                     clearTimeout(giveUpTimer);
@@ -209,39 +207,11 @@ class SourceQuery {
         });
     }
 
-    /**
-     * @param {string} reqType 
-     * @param {string} allowed_response 
-     * @returns {Promise<number>}
-     */
-    getChallengeKey(reqType, allowed_response = "") {
-        return new Promise((resolve, reject) => {
-            let r = [ids.S2A_SERVERQUERY_GETCHALLENGE];
-            if (allowed_response) r.push(allowed_response);
-
-            this.send(Buffer.from([-1, -1, -1, -1, reqType.charCodeAt(0), -1, -1, -1, -1]), r).then(buffer => {
-                resolve(bp.unpack("<i", buffer)[0]);
-            }, failed => reject(failed));
-        });
-    }
-
-    /**
-     * @param {string[]} keys 
-     * @param {any[]} values 
-     */
-    combine(keys, values) {
-        let pairs = {};
-        for (let i = 0; i < values.length; i++) {
-            pairs[keys[i]] = values[i];
-        }
-        return pairs;
-    }
-
     getInfo() {
         return new Promise((resolve, reject) => {
-            this.send(bp.pack("<isS", [-1, ids.A2S_INFO, "Source Engine Query"]), [ids.S2A_INFO]).then(buffer => {
+            this.send(bp.pack("<isS", [-1, ids.A2S_INFO, "Source Engine Query"]), ids.S2A_INFO).then(buffer => {
                 let infoArray = bp.unpack("<bSSSShBBBssBB", buffer);
-                let info = this.combine(["protocol", "name", "map", "folder", "game", "appid", "players", "maxplayers", "bots", "servertype", "environment", "password", "vac"], infoArray);
+                let info = Util.combine(["protocol", "name", "map", "folder", "game", "appid", "players", "maxplayers", "bots", "servertype", "environment", "password", "vac"], infoArray);
                 
                 let offset = bp.calcLength("<bSSSShBBBssBB", infoArray);
                 buffer = buffer.slice(offset);
@@ -290,38 +260,40 @@ class SourceQuery {
 
     getPlayers() {
         return new Promise((resolve, reject) => {
-            this.sendRaw(Buffer.from([-1, -1, -1, -1, ids.A2S_PLAYER.charCodeAt(0), -1, -1, -1, -1])).then(buffer => {
-                let response_type = String.fromCharCode(buffer[0]);
-                console.log("first got " + response_type);
-            }, failed => reject(failed));
-            /*this.send(bp.pack("<isi", [-1, ids.A2S_PLAYER, key]), [ids.S2A_PLAYER]).then(buffer => {
-                let playerCount = bp.unpack("<b", buffer)[0];
-                let players = [];
-                let offset = 1;
-                for (let i = 0; i < playerCount; i++) {
-                    let p = bp.unpack("<bSif", buffer, offset);
-                    players.push(this.combine(["index", "name", "score", "online"], p));
-                    offset += bp.calcLength("<bSif", p);
+            this.sendRaw(bp.pack("<isi", [-1, ids.A2S_PLAYER, -1])).then(buffer => {
+                let header = String.fromCharCode(buffer[0]);
+                buffer = buffer.slice(1);
+
+                if (header == ids.S2A_SERVERQUERY_GETCHALLENGE) {
+                    let key = bp.unpack("<i", buffer)[0];
+                    this.send(bp.pack("<isi", [-1, ids.A2S_PLAYER, key]), ids.S2A_PLAYER).then(player_buffer => {
+                        resolve(Util.parsePlayerBuffer(player_buffer));
+                    }, failed => reject(failed));
                 }
-                resolve(players);
-            }, failed => reject(failed));*/
+                else if (header == ids.S2A_PLAYER) {
+                    return resolve(Util.parsePlayerBuffer(buffer));
+                }
+                else throw new Error("Invalid header @ getPlayers: " + header);
+            }, failed => reject(failed));
         });
     }
 
     getRules() {
         return new Promise((resolve, reject) => {
-            this.getChallengeKey(ids.A2S_RULES, ids.S2A_RULES).then(key => {
-                this.send(bp.pack("<isi", [-1, ids.A2S_RULES, key]), [ids.S2A_RULES]).then(buffer => {
-                    let ruleCount = bp.unpack("<h", buffer)[0];
-                    let rules = {};
-                    let offset = 2;
-                    for (let i = 0; i < ruleCount; i++) {
-                        let r = bp.unpack("<SS", buffer, offset);
-                        rules[r[0]] = r[1];
-                        offset += bp.calcLength("<SS", r);
-                    }
-                    resolve(rules);
-                }, failed => reject(failed));
+            this.sendRaw(bp.pack("<isi", [-1, ids.A2S_RULES, -1])).then(buffer => {
+                let header = String.fromCharCode(buffer[0]);
+                buffer = buffer.slice(1);
+
+                if (header == ids.S2A_SERVERQUERY_GETCHALLENGE) {
+                    let key = bp.unpack("<i", buffer)[0];
+                    this.send(bp.pack("<isi", [-1, ids.A2S_RULES, key]), ids.S2A_RULES).then(rules_buffer => {
+                        resolve(Util.parseRulesBuffer(rules_buffer));
+                    }, failed => reject(failed));
+                }
+                else if (header == ids.S2A_RULES) {
+                    return resolve(Util.parseRulesBuffer(buffer));
+                }
+                else throw new Error("Invalid header @ getRules: " + header);
             }, failed => reject(failed));
         });
     }
@@ -331,6 +303,63 @@ class SourceQuery {
             if (this.client.closed) return;
             this.client.close();
         }
+    }
+}
+
+class Util {
+    /**
+    * @param {string[]} keys 
+    * @param {any[]} values 
+    */
+    static combine(keys, values) {
+        let pairs = {};
+        for (let i = 0; i < values.length; i++) {
+            pairs[keys[i]] = values[i];
+        }
+        return pairs;
+    }
+
+    /**
+     * @param {Buffer} buffer 
+     */
+    static parsePlayerBuffer(buffer) {
+        //we ignore the first byte because its just unreliable when there is more than 255 players
+        let players = [];
+        let offset = 1;
+        do {
+            let p = bp.unpack("<bSif", buffer, offset);
+            if (!p) break;
+
+            players.push(Util.combine(["index", "name", "score", "online"], p));
+            offset += bp.calcLength("<bSif", p);
+        }
+        while (offset <= buffer.length);
+
+        return players;
+    }
+
+    /**
+     * @param {Buffer} buffer 
+     */
+    static parseRulesBuffer(buffer) {
+        //we ignore the first byte because its just unreliable when there is more than 255 rules
+        let rules = {};
+        let offset = 2;
+
+        while (offset <= buffer.length) {
+            if (offset >= buffer.length) {
+                //weird shit happens here idk y
+                break;
+            }
+
+            let r = bp.unpack("<SS", buffer, offset);
+            if (!r) break;
+
+            rules[r[0]] = r[1];
+            offset += bp.calcLength("<SS", r);
+        }
+
+        return rules;
     }
 }
 
