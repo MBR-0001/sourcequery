@@ -7,6 +7,7 @@ async function Test() {
     console.log(Object.keys(await query.getInfo()).length);
 }
 
+console.log("Test started at " + new Date());
 try { Test(); }
 catch (ex) {
     console.log(ex);
