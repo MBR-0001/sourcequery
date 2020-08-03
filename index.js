@@ -142,15 +142,59 @@ class SourceQuery {
                     return reject(err);
                 }
                 
+                /**
+                 * @param {Buffer} buffer 
+                 */
                 let relayResponse = buffer => {
                     if (buffer.length < 1) return;
-                    console.log("got " + bp.unpack("<s", buffer)[0] + ", expected " + responseCode);
-                    if (!responseCode.includes(bp.unpack("<s", buffer)[0])) return;
+                    let response_type = String.fromCharCode(buffer[0]);
+                    console.log("got " + response_type + ", expected " + responseCode);
+                    if (!responseCode.includes(response_type)) return;
 
                     this.unpacker.removeListener("message", relayResponse);
                     clearTimeout(giveUpTimer);
                     
                     resolve(buffer.slice(1));
+                    this.queryEnded();
+                };
+                
+                giveUpTimer = setTimeout(() => {
+                    this.unpacker.removeListener("message", relayResponse);
+                    reject("timeout");
+                    this.queryEnded();
+                }, this.timeout);
+                
+                this.unpacker.on("message", relayResponse);
+            });
+        });
+    }
+
+    /**
+     * @param {Buffer} buffer 
+     * @returns {Promise<Buffer>}
+     */
+    sendRaw(buffer) {
+        return new Promise((resolve, reject) => {
+            this.openQueries++;
+
+            this.client.send(buffer, 0, buffer.length, this.port, this.address, err => {
+                let giveUpTimer = null;
+            
+                if (err) {
+                    this.queryEnded();
+                    return reject(err);
+                }
+                
+                /**
+                 * @param {Buffer} buffer 
+                 */
+                let relayResponse = buffer => {
+                    if (buffer.length < 1) return;
+
+                    this.unpacker.removeListener("message", relayResponse);
+                    clearTimeout(giveUpTimer);
+                    
+                    resolve(buffer);
                     this.queryEnded();
                 };
                 
@@ -174,7 +218,8 @@ class SourceQuery {
         return new Promise((resolve, reject) => {
             let r = [ids.S2A_SERVERQUERY_GETCHALLENGE];
             if (allowed_response) r.push(allowed_response);
-            this.send(bp.pack("<isi", [-1, reqType, -1]), r).then(buffer => {
+
+            this.send(Buffer.from([-1, -1, -1, -1, reqType.charCodeAt(0), -1, -1, -1, -1]), r).then(buffer => {
                 resolve(bp.unpack("<i", buffer)[0]);
             }, failed => reject(failed));
         });
@@ -246,6 +291,10 @@ class SourceQuery {
     getPlayers() {
         return new Promise((resolve, reject) => {
             this.getChallengeKey(ids.A2S_PLAYER, ids.S2A_PLAYER).then(key => {
+                this.sendRaw(Buffer.from([-1, -1, -1, -1, ids.A2S_PLAYER.charCodeAt(0), -1, -1, -1, -1])).then(buffer => {
+                    let response_type = String.fromCharCode(buffer[0]);
+                    console.log("first got " + response_type);
+                }, failed => reject(failed));
                 this.send(bp.pack("<isi", [-1, ids.A2S_PLAYER, key]), [ids.S2A_PLAYER]).then(buffer => {
                     let playerCount = bp.unpack("<b", buffer)[0];
                     let players = [];
