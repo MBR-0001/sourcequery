@@ -74,8 +74,6 @@ class SQUnpacker extends EventEmitter {
         let header = bp.unpack("<i", buffer)[0];
         buffer = buffer.slice(4);
 
-        console.log(header);
-
         if (header == -1) {
             this.emit("message", buffer);
             return;
@@ -118,7 +116,7 @@ class SourceQuery {
         this.client.on("error", () => {});
         this.client.on("close", () => this.client.closed = true);
 
-        this.squnpacker = new SQUnpacker(this.client, this.timeout);
+        this.unpacker = new SQUnpacker(this.client, this.timeout);
     }
 
     queryEnded() {
@@ -149,7 +147,7 @@ class SourceQuery {
                     console.log(bp.unpack("<s", buffer)[0], responseCode);
                     if (bp.unpack("<s", buffer)[0] !== responseCode) return;
 
-                    this.squnpacker.removeListener("message", relayResponse);
+                    this.unpacker.removeListener("message", relayResponse);
                     clearTimeout(giveUpTimer);
                     
                     resolve(buffer.slice(1));
@@ -157,12 +155,12 @@ class SourceQuery {
                 };
                 
                 giveUpTimer = setTimeout(() => {
-                    this.squnpacker.removeListener("message", relayResponse);
+                    this.unpacker.removeListener("message", relayResponse);
                     reject("timeout");
                     this.queryEnded();
                 }, this.timeout);
                 
-                this.squnpacker.on("message", relayResponse);
+                this.unpacker.on("message", relayResponse);
             });
         });
     }
