@@ -287,17 +287,22 @@ class SourceQuery {
 
     getRules() {
         return new Promise((resolve, reject) => {
+            console.log("Sending rules #1");
             this.sendRaw(bp.pack("<isi", [-1, ids.A2S_RULES, -1])).then(buffer => {
                 let header = String.fromCharCode(buffer[0]);
                 buffer = buffer.slice(1);
+                console.log("Got rules #1, header: " + header);
 
                 if (header == ids.S2A_SERVERQUERY_GETCHALLENGE) {
                     let key = bp.unpack("<i", buffer)[0];
+                    console.log("Sending rules #2");
                     this.send(bp.pack("<isi", [-1, ids.A2S_RULES, key]), ids.S2A_RULES).then(rules_buffer => {
+                        console.log("Got rules #2, buffer: " + rules_buffer);
                         resolve(Util.parseRulesBuffer(rules_buffer));
                     }, failed => reject(failed));
                 }
                 else if (header == ids.S2A_RULES) {
+                    console.log("Got rules else, buffer: " + buffer);
                     return resolve(Util.parseRulesBuffer(buffer));
                 }
                 else throw new Error("Invalid header @ getRules: " + header);
