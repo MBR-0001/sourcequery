@@ -268,8 +268,12 @@ class SourceQuery {
                 buffer = buffer.slice(1);
 
                 if (header == ids.S2A_SERVERQUERY_GETCHALLENGE) {
+                    console.log(buffer);
                     let key = bp.unpack("<i", buffer)[0];
-                    this.send(bp.pack("<isi", [-1, ids.A2S_PLAYER, key]), ids.S2A_PLAYER).then(player_buffer => {
+                    console.log("Got key " + key);
+                    let buf = bp.pack("<isi", [-1, ids.A2S_PLAYER, key]);
+                    console.log(buf);
+                    this.send(buf, ids.S2A_PLAYER).then(player_buffer => {
                         resolve(Util.parsePlayerBuffer(player_buffer));
                     }, failed => reject(failed));
                 }
