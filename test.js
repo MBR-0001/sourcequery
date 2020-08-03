@@ -2,12 +2,11 @@ const SourceQuery = require("./index");
 
 async function Test() {
     const query = new SourceQuery("139.99.124.97", 28075, 5000, true);
-    console.log((await query.getPlayers()).length);
-    console.log(Object.keys(await query.getRules()).length);
-    console.log(Object.keys(await query.getInfo()).length);
+    query.getPlayers().then(players => console.log("players: " + players.length));
+    query.getRules().then(rules => console.log("rules: " + Object.keys(rules).length));
+    query.getInfo().then(info => console.log("info: " + Object.keys(info).length));
 }
 
-console.log("Test started at " + new Date());
 try { Test(); }
 catch (ex) {
     console.log(ex);

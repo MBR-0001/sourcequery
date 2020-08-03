@@ -127,8 +127,8 @@ class SourceQuery {
 
     /**
      * @param {Buffer} buffer 
-     * @param {string} responseCode 
-     * @returns {Promise<Buffer>}
+     * @param {string[]} responseCode 
+     * @returns {Promise<{buffer: Buffer, header: string?}>}
      */
     send(buffer, responseCode) {
         return new Promise((resolve, reject) => {
@@ -147,52 +147,14 @@ class SourceQuery {
                  */
                 let relayResponse = buffer => {
                     if (buffer.length < 1) return;
-                    if (responseCode != String.fromCharCode(buffer[0])) return;
+
+                    let header = String.fromCharCode(buffer[0]);
+                    if (!responseCode.includes(header)) return;
 
                     this.unpacker.removeListener("message", relayResponse);
                     clearTimeout(giveUpTimer);
                     
-                    resolve(buffer.slice(1));
-                    this.queryEnded();
-                };
-                
-                giveUpTimer = setTimeout(() => {
-                    this.unpacker.removeListener("message", relayResponse);
-                    reject("timeout");
-                    this.queryEnded();
-                }, this.timeout);
-                
-                this.unpacker.on("message", relayResponse);
-            });
-        });
-    }
-
-    /**
-     * @param {Buffer} buffer 
-     * @returns {Promise<Buffer>}
-     */
-    sendRaw(buffer) {
-        return new Promise((resolve, reject) => {
-            this.openQueries++;
-
-            this.client.send(buffer, 0, buffer.length, this.port, this.address, err => {
-                let giveUpTimer = null;
-            
-                if (err) {
-                    this.queryEnded();
-                    return reject(err);
-                }
-                
-                /**
-                 * @param {Buffer} buffer 
-                 */
-                let relayResponse = buffer => {
-                    if (buffer.length < 1) return;
-
-                    this.unpacker.removeListener("message", relayResponse);
-                    clearTimeout(giveUpTimer);
-                    
-                    resolve(buffer);
+                    resolve({buffer: buffer.slice(1), header: header});
                     this.queryEnded();
                 };
                 
@@ -209,7 +171,7 @@ class SourceQuery {
 
     getInfo() {
         return new Promise((resolve, reject) => {
-            this.send(bp.pack("<isS", [-1, ids.A2S_INFO, "Source Engine Query"]), ids.S2A_INFO).then(buffer => {
+            this.send(bp.pack("<isS", [-1, ids.A2S_INFO, "Source Engine Query"]), ids.S2A_INFO).then(({ buffer }) => {
                 let infoArray = bp.unpack("<bSSSShBBBssBB", buffer);
                 let info = Util.combine(["protocol", "name", "map", "folder", "game", "appid", "players", "maxplayers", "bots", "servertype", "environment", "password", "vac"], infoArray);
                 
@@ -269,7 +231,7 @@ class SourceQuery {
             }
             while (attempts < 10 && !data);
 
-            if (!data) reject("timeout");
+            if (!data) reject("players timed out");
             else resolve(data);
         });
     }
@@ -279,14 +241,14 @@ class SourceQuery {
      */
     _getPlayers() {
         return new Promise((resolve, reject) => {
-            this.sendRaw(bp.pack("<isi", [-1, ids.A2S_PLAYER, -1])).then(buffer => {
-                let header = String.fromCharCode(buffer[0]);
-                buffer = buffer.slice(1);
+            this.send(bp.pack("<isi", [-1, ids.A2S_PLAYER, -1]), [ids.S2A_SERVERQUERY_GETCHALLENGE, ids.S2A_PLAYER]).then(data => {
+                let header = data.header;
+                let buffer = data.buffer;
 
                 if (header == ids.S2A_SERVERQUERY_GETCHALLENGE) {
                     let key = bp.unpack("<i", buffer)[0];
-                    this.send(bp.pack("<isi", [-1, ids.A2S_PLAYER, key]), ids.S2A_PLAYER).then(player_buffer => {
-                        resolve(Util.parsePlayerBuffer(player_buffer));
+                    this.send(bp.pack("<isi", [-1, ids.A2S_PLAYER, key]), ids.S2A_PLAYER).then(player_data => {
+                        resolve(Util.parsePlayerBuffer(player_data.buffer));
                     }, failed => reject(failed));
                 }
                 else if (header == ids.S2A_PLAYER) {
@@ -308,21 +270,21 @@ class SourceQuery {
             }
             while (attempts < 10 && !data);
 
-            if (!data) reject("timeout");
+            if (!data) reject("rules timed out");
             else resolve(data);
         });
     }
 
     _getRules() {
         return new Promise((resolve, reject) => {
-            this.sendRaw(bp.pack("<isi", [-1, ids.A2S_RULES, -1])).then(buffer => {
-                let header = String.fromCharCode(buffer[0]);
-                buffer = buffer.slice(1);
+            this.send(bp.pack("<isi", [-1, ids.A2S_RULES, -1]), [ids.S2A_SERVERQUERY_GETCHALLENGE, ids.S2A_RULES]).then(data => {
+                let header = data.header;
+                let buffer = data.buffer;
 
                 if (header == ids.S2A_SERVERQUERY_GETCHALLENGE) {
                     let key = bp.unpack("<i", buffer)[0];
-                    this.send(bp.pack("<isi", [-1, ids.A2S_RULES, key]), ids.S2A_RULES).then(rules_buffer => {
-                        resolve(Util.parseRulesBuffer(rules_buffer));
+                    this.send(bp.pack("<isi", [-1, ids.A2S_RULES, key]), ids.S2A_RULES).then(rules_data => {
+                        resolve(Util.parseRulesBuffer(rules_data.buffer));
                     }, failed => reject(failed));
                 }
                 else if (header == ids.S2A_RULES) {
