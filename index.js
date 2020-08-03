@@ -127,7 +127,7 @@ class SourceQuery {
 
     /**
      * @param {Buffer} buffer 
-     * @param {string} responseCode 
+     * @param {string[]} responseCode 
      * @returns {Promise<Buffer>}
      */
     send(buffer, responseCode) {
@@ -144,8 +144,8 @@ class SourceQuery {
                 
                 let relayResponse = buffer => {
                     if (buffer.length < 1) return;
-                    console.log(bp.unpack("<s", buffer)[0], responseCode);
-                    if (bp.unpack("<s", buffer)[0] !== responseCode) return;
+                    console.log("got " + bp.unpack("<s", buffer)[0] + ", expected " + responseCode);
+                    if (!responseCode.includes(bp.unpack("<s", buffer)[0])) return;
 
                     this.unpacker.removeListener("message", relayResponse);
                     clearTimeout(giveUpTimer);
@@ -171,7 +171,7 @@ class SourceQuery {
      */
     getChallengeKey(reqType) {
         return new Promise((resolve, reject) => {
-            this.send(bp.pack("<isi", [-1, reqType, -1]), ids.S2A_SERVERQUERY_GETCHALLENGE).then(buffer => {
+            this.send(bp.pack("<isi", [-1, reqType, -1]), [ids.S2A_SERVERQUERY_GETCHALLENGE, reqType]).then(buffer => {
                 resolve(bp.unpack("<i", buffer)[0]);
             }, failed => reject(failed));
         });
@@ -191,7 +191,7 @@ class SourceQuery {
 
     getInfo() {
         return new Promise((resolve, reject) => {
-            this.send(bp.pack("<isS", [-1, ids.A2S_INFO, "Source Engine Query"]), ids.S2A_INFO).then(buffer => {
+            this.send(bp.pack("<isS", [-1, ids.A2S_INFO, "Source Engine Query"]), [ids.S2A_INFO]).then(buffer => {
                 let infoArray = bp.unpack("<bSSSShBBBssBB", buffer);
                 let info = this.combine(["protocol", "name", "map", "folder", "game", "appid", "players", "maxplayers", "bots", "servertype", "environment", "password", "vac"], infoArray);
                 
@@ -243,7 +243,7 @@ class SourceQuery {
     getPlayers() {
         return new Promise((resolve, reject) => {
             this.getChallengeKey(ids.A2S_PLAYER).then(key => {
-                this.send(bp.pack("<isi", [-1, ids.A2S_PLAYER, key]), ids.S2A_PLAYER).then(buffer => {
+                this.send(bp.pack("<isi", [-1, ids.A2S_PLAYER, key]), [ids.S2A_PLAYER]).then(buffer => {
                     let playerCount = bp.unpack("<b", buffer)[0];
                     let players = [];
                     let offset = 1;
@@ -261,7 +261,7 @@ class SourceQuery {
     getRules() {
         return new Promise((resolve, reject) => {
             this.getChallengeKey(ids.A2S_RULES).then(key => {
-                this.send(bp.pack("<isi", [-1, ids.A2S_RULES, key]), ids.S2A_RULES).then(buffer => {
+                this.send(bp.pack("<isi", [-1, ids.A2S_RULES, key]), [ids.S2A_RULES]).then(buffer => {
                     let ruleCount = bp.unpack("<h", buffer)[0];
                     let rules = {};
                     let offset = 2;
