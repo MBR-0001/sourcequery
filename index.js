@@ -74,6 +74,8 @@ class SQUnpacker extends EventEmitter {
         let header = bp.unpack("<i", buffer)[0];
         buffer = buffer.slice(4);
 
+        console.log(header);
+
         if (header == -1) {
             this.emit("message", buffer);
             return;
