@@ -6,7 +6,6 @@ const ids = {
     A2S_INFO: "T",
     S2A_INFO: "I",
     
-    A2S_SERVERQUERY_GETCHALLENGE: "W",
     S2A_SERVERQUERY_GETCHALLENGE: "A",
     
     A2S_PLAYER: "U",
@@ -18,7 +17,6 @@ const ids = {
 
 class Answer {
     constructor() {
-        this.compressed = false;
         this.parts = [];
         this.partsfound = 0;
     }
@@ -28,7 +26,6 @@ class Answer {
      */
     add(buffer) {
         let head = bp.unpack("<ibbh", buffer);
-        if ((head[0] & 0x80000000) !== 0) this.compressed = true;
         this.totalpackets = head[1];
         this.partsfound++;
         this.parts[head[2]] = buffer;
@@ -73,6 +70,7 @@ class SQUnpacker extends EventEmitter {
         //this causes an exception every now and then, idk why
         let unpacked = bp.unpack("<i", buffer);
         if (!unpacked) {
+            console.log("UNPACKED MISSING");
             console.log(buffer);
             return;
         }
@@ -109,6 +107,7 @@ class SourceQuery {
      * @param {string} address 
      * @param {number} port 
      * @param {number} timeout 
+     * @param {boolean} autoclose 
      */
     constructor(address, port, timeout = 1000, autoclose = true) {
         this.address = address;
@@ -141,12 +140,12 @@ class SourceQuery {
             this.openQueries++;
 
             this.client.send(buffer, 0, buffer.length, this.port, this.address, err => {
-                let giveUpTimer = null;
-            
                 if (err) {
                     this.queryEnded();
                     return reject(err);
                 }
+
+                let giveUpTimer = null;
                 
                 /**
                  * @param {Buffer} buffer 
@@ -257,9 +256,7 @@ class SourceQuery {
                         resolve(Util.parsePlayerBuffer(player_data.buffer));
                     }, failed => reject(failed));
                 }
-                else if (header == ids.S2A_PLAYER) {
-                    return resolve(Util.parsePlayerBuffer(buffer));
-                }
+                else if (header == ids.S2A_PLAYER) resolve(Util.parsePlayerBuffer(buffer));
                 else throw new Error("Invalid header @ getPlayers: " + header);
             }, failed => reject(failed));
         });
@@ -302,8 +299,7 @@ class SourceQuery {
     }
 
     close() {
-        if (this.openQueries == 0) {
-            if (this.client.closed) return;
+        if (this.openQueries == 0 && !this.client.closed) {
             this.client.close();
         }
     }
@@ -329,6 +325,7 @@ class Util {
         //we ignore the first byte because its just unreliable when there is more than 255 players
         let players = [];
         let offset = 1;
+
         do {
             let p = bp.unpack("<bSif", buffer, offset);
             if (!p) break;
@@ -336,7 +333,7 @@ class Util {
             players.push(Util.combine(["index", "name", "score", "online"], p));
             offset += bp.calcLength("<bSif", p);
         }
-        while (offset <= buffer.length);
+        while (offset < buffer.length);
 
         return players;
     }
@@ -348,19 +345,15 @@ class Util {
         //we ignore the first byte because its just unreliable when there is more than 255 rules
         let rules = {};
         let offset = 2;
-
-        while (offset <= buffer.length) {
-            if (offset >= buffer.length) {
-                //weird shit happens here idk y
-                break;
-            }
-
+        
+        do {
             let r = bp.unpack("<SS", buffer, offset);
             if (!r) break;
 
             rules[r[0]] = r[1];
             offset += bp.calcLength("<SS", r);
         }
+        while (offset < buffer.length);
 
         return rules;
     }
