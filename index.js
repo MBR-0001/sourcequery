@@ -133,7 +133,7 @@ class SourceQuery {
     /**
      * @param {Buffer} buffer 
      * @param {string[]} responseCode 
-     * @returns {Promise<{buffer: Buffer, header: string?}>}
+     * @returns {Promise<{buffer: Buffer, header: string}>}
      */
     send(buffer, responseCode) {
         return new Promise((resolve, reject) => {
@@ -176,7 +176,7 @@ class SourceQuery {
 
     getInfo() {
         return new Promise((resolve, reject) => {
-            this.send(bp.pack("<isS", [-1, ids.A2S_INFO, "Source Engine Query"]), ids.S2A_INFO).then(({ buffer }) => {
+            this.send(bp.pack("<isS", [-1, ids.A2S_INFO, "Source Engine Query"]), [ids.S2A_INFO]).then(({ buffer }) => {
                 let infoArray = bp.unpack("<bSSSShBBBssBB", buffer);
                 let info = Util.combine(["protocol", "name", "map", "folder", "game", "appid", "players", "maxplayers", "bots", "servertype", "environment", "password", "vac"], infoArray);
                 
@@ -252,7 +252,7 @@ class SourceQuery {
 
                 if (header == ids.S2A_SERVERQUERY_GETCHALLENGE) {
                     let key = bp.unpack("<i", buffer)[0];
-                    this.send(bp.pack("<isi", [-1, ids.A2S_PLAYER, key]), ids.S2A_PLAYER).then(player_data => {
+                    this.send(bp.pack("<isi", [-1, ids.A2S_PLAYER, key]), [ids.S2A_PLAYER]).then(player_data => {
                         resolve(Util.parsePlayerBuffer(player_data.buffer));
                     }, failed => reject(failed));
                 }
@@ -286,7 +286,7 @@ class SourceQuery {
 
                 if (header == ids.S2A_SERVERQUERY_GETCHALLENGE) {
                     let key = bp.unpack("<i", buffer)[0];
-                    this.send(bp.pack("<isi", [-1, ids.A2S_RULES, key]), ids.S2A_RULES).then(rules_data => {
+                    this.send(bp.pack("<isi", [-1, ids.A2S_RULES, key]), [ids.S2A_RULES]).then(rules_data => {
                         resolve(Util.parseRulesBuffer(rules_data.buffer));
                     }, failed => reject(failed));
                 }
@@ -322,7 +322,7 @@ class Util {
      * @param {Buffer} buffer 
      */
     static parsePlayerBuffer(buffer) {
-        //we ignore the first byte because its just unreliable when there is more than 255 players
+        //we ignore the first byte (player count) because it is unreliable when there is more than 255 players
         let players = [];
         let offset = 1;
 
@@ -342,7 +342,7 @@ class Util {
      * @param {Buffer} buffer 
      */
     static parseRulesBuffer(buffer) {
-        //we ignore the first byte because its just unreliable when there is more than 255 rules
+        //we ignore first two bytes because they are useless
         let rules = {};
         let offset = 2;
         
