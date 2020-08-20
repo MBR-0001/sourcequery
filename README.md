@@ -1,6 +1,7 @@
 # SourceQuery
 
 https://www.npmjs.com/package/sourcequery but it doesn't suck
+Valve docs: https://developer.valvesoftware.com/wiki/Server_queries
 
 ## Usage
 
@@ -13,7 +14,7 @@ Example usage:
 ```js
 const SourceQuery = require('sourcequery');
 
-const query = new SourceQuery('192.168.100.2', 28015, 1000, true); // 1000ms timeout, automatically close connection 250ms after last request
+const query = new SourceQuery('127.0.0.1', 28015, 1000, true); // 1000ms timeout, automatically close connection 250ms after last request
 
 query.getInfo().then(info => console.log('Server Info:', info));
 query.getPlayers().then(players => console.log('Online Players:', players));
