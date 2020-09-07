@@ -31,18 +31,19 @@ class Answer {
         this.parts[head[2]] = buffer;
     }
 
-    isComplete() {
+    get complete() {
         return this.partsfound == this.totalpackets;
     }
 
     assemble() {
         let combined = [];
+        
         for (let i = 0; i < this.parts.length; i++) {
             let head = bp.unpack("<ibb", this.parts[i]);
             combined.push(this.parts[i].slice(head[2] == 1 ? 16 : 8));
         }
-        let payload = Buffer.concat(combined).slice(4);
-        return payload;
+
+        return Buffer.concat(combined).slice(4);
     }
 }
 
@@ -69,11 +70,7 @@ class SQUnpacker extends EventEmitter {
     readMessage(buffer) {
         //this causes an exception every now and then, idk why
         let unpacked = bp.unpack("<i", buffer);
-        if (!unpacked) {
-            console.log("UNPACKED MISSING");
-            console.log(buffer);
-            return;
-        }
+        if (!unpacked) return;
 
         let header = unpacked[0];
         buffer = buffer.slice(4);
@@ -94,7 +91,7 @@ class SQUnpacker extends EventEmitter {
 
             ans.add(buffer);
             
-            if (ans.isComplete()) {
+            if (ans.complete) {
                 this.emit("message", ans.assemble());
                 delete this.answers[ansID];
             }
@@ -115,7 +112,7 @@ class SourceQuery {
         this.timeout = timeout;
         this.autoclose = autoclose;
 
-        this.openQueries = 0;
+        this.queries = 0;
 
         this.client = dgram.createSocket("udp4");
         this.client.on("error", () => {});
@@ -125,7 +122,7 @@ class SourceQuery {
     }
 
     queryEnded() {
-        this.openQueries--;
+        this.queries--;
 
         if (this.autoclose) setTimeout(() => this.close(), 250);
     }
@@ -137,7 +134,7 @@ class SourceQuery {
      */
     send(buffer, responseCode) {
         return new Promise((resolve, reject) => {
-            this.openQueries++;
+            this.queries++;
 
             this.client.send(buffer, 0, buffer.length, this.port, this.address, err => {
                 if (err) {
@@ -156,7 +153,7 @@ class SourceQuery {
                     let header = String.fromCharCode(buffer[0]);
                     if (!responseCode.includes(header)) return;
 
-                    this.unpacker.removeListener("message", relayResponse);
+                    this.unpacker.off("message", relayResponse);
                     clearTimeout(giveUpTimer);
                     
                     resolve({buffer: buffer.slice(1), header: header});
@@ -164,8 +161,8 @@ class SourceQuery {
                 };
                 
                 giveUpTimer = setTimeout(() => {
-                    this.unpacker.removeListener("message", relayResponse);
-                    reject("timeout");
+                    this.unpacker.off("message", relayResponse);
+                    reject(new Error("timeout"));
                     this.queryEnded();
                 }, this.timeout);
                 
@@ -180,46 +177,52 @@ class SourceQuery {
                 let infoArray = bp.unpack("<bSSSShBBBssBB", buffer);
                 let info = Util.combine(["protocol", "name", "map", "folder", "game", "appid", "players", "maxplayers", "bots", "servertype", "environment", "password", "vac"], infoArray);
                 
-                let offset = bp.calcLength("<bSSSShBBBssBB", infoArray);
-                buffer = buffer.slice(offset);
+                info.password = Boolean(info.password);
+                info.vac = Boolean(info.vac);
+
+                buffer = buffer.slice(bp.calcLength("<bSSSShBBBssBB", infoArray));
+
+                if (info.appid == 2400) {
+                    info.ship = Util.combine(["mode", "witnesses", "duration"], bp.unpack("<bbb", buffer));
+                    buffer = buffer.slice(3);
+                }
                 
                 info.version = bp.unpack("<S", buffer)[0];
-                offset = bp.calcLength("<S", [info.version]);
-                buffer = buffer.slice(offset);
-                
+                buffer = buffer.slice(bp.calcLength("<S", [info.version]));
+
                 if (buffer.length > 1) {
-                    offset = 0;
                     let EDF = bp.unpack("<b", buffer)[0];
-                    offset += 1;
+                    buffer = buffer.slice(1);
                     
                     if ((EDF & 0x80) !== 0) {
-                        info.port = bp.unpack("<h", buffer, offset)[0];
-                        offset += 2;
+                        info.port = bp.unpack("<h", buffer)[0];
+                        buffer = buffer.slice(2);
                     }
                     
                     if ((EDF & 0x10) !== 0) {
-                        info.steamID = bp.unpack("<ii", buffer, offset)[0];
-                        offset += 8;
+                        info.steamID = bp.unpack("<ii", buffer)[0];
+                        buffer = buffer.slice(8);
                     }
                     
                     if ((EDF & 0x40) !== 0) {
-                        let tvinfo = bp.unpack("<hS", buffer, offset);
+                        let tvinfo = bp.unpack("<hS", buffer);
                         info["tv-port"] = tvinfo[0];
                         info["tv-name"] = tvinfo[1];
-                        offset += bp.calcLength("<hS", tvinfo);
+                        buffer = buffer.slice(bp.calcLength("<hS", tvinfo));
                     }
                     
                     if ((EDF & 0x20) !== 0) {
-                        info.keywords = bp.unpack("<S", buffer, offset)[0];
-                        offset += bp.calcLength("<S", info.keywords);
+                        info.keywords = bp.unpack("<S", buffer)[0];
+                        buffer = buffer.slice(info.keywords.length + 1); //length + "\0"
+                        info.keywords = info.keywords.trim();
                     }
                     
                     if ((EDF & 0x01) !== 0) {
-                        info.gameID = bp.unpack("<i", buffer, offset)[0];
-                        offset += 4;
+                        info.gameID = bp.unpack("<ii", buffer)[0];
+                        buffer = buffer.slice(8);
                     }
                 }
-                
+
                 resolve(info);
             }, failed => reject(failed));
         });
@@ -236,7 +239,7 @@ class SourceQuery {
             }
             while (attempts < 10 && !data);
 
-            if (!data) reject("players timed out");
+            if (!data) reject(new Error("players timed out"));
             else resolve(data);
         });
     }
@@ -247,17 +250,14 @@ class SourceQuery {
     _getPlayers() {
         return new Promise((resolve, reject) => {
             this.send(bp.pack("<isi", [-1, ids.A2S_PLAYER, -1]), [ids.S2A_SERVERQUERY_GETCHALLENGE, ids.S2A_PLAYER]).then(data => {
-                let header = data.header;
-                let buffer = data.buffer;
-
-                if (header == ids.S2A_SERVERQUERY_GETCHALLENGE) {
-                    let key = bp.unpack("<i", buffer)[0];
+                if (data.header == ids.S2A_SERVERQUERY_GETCHALLENGE) {
+                    let key = bp.unpack("<i", data.buffer)[0];
                     this.send(bp.pack("<isi", [-1, ids.A2S_PLAYER, key]), [ids.S2A_PLAYER]).then(player_data => {
                         resolve(Util.parsePlayerBuffer(player_data.buffer));
                     }, failed => reject(failed));
                 }
-                else if (header == ids.S2A_PLAYER) resolve(Util.parsePlayerBuffer(buffer));
-                else throw new Error("Invalid header @ getPlayers: " + header);
+                else if (data.header == ids.S2A_PLAYER) resolve(Util.parsePlayerBuffer(data.buffer));
+                else reject(new Error("Invalid header @ getPlayers: " + data.header));
             }, failed => reject(failed));
         });
     }
@@ -273,7 +273,7 @@ class SourceQuery {
             }
             while (attempts < 10 && !data);
 
-            if (!data) reject("rules timed out");
+            if (!data) reject(new Error("rules timed out"));
             else resolve(data);
         });
     }
@@ -293,13 +293,13 @@ class SourceQuery {
                 else if (header == ids.S2A_RULES) {
                     return resolve(Util.parseRulesBuffer(buffer));
                 }
-                else throw new Error("Invalid header @ getRules: " + header);
+                else reject(new Error("Invalid header @ getRules: " + header));
             }, failed => reject(failed));
         });
     }
 
     close() {
-        if (this.openQueries == 0 && !this.client.closed) {
+        if (this.queries == 0 && !this.client.closed) {
             this.client.close();
         }
     }
@@ -324,16 +324,17 @@ class Util {
     static parsePlayerBuffer(buffer) {
         //we ignore the first byte (player count) because it is unreliable when there is more than 255 players
         let players = [];
-        let offset = 1;
+        buffer = buffer.slice(1);
 
         do {
-            let p = bp.unpack("<bSif", buffer, offset);
+            let p = bp.unpack("<bSif", buffer);
             if (!p) break;
 
             players.push(Util.combine(["index", "name", "score", "online"], p));
-            offset += bp.calcLength("<bSif", p);
+            players[players.length - 1].index = players.length - 1;
+            buffer = buffer.slice(bp.calcLength("<bSif", p));
         }
-        while (offset < buffer.length);
+        while (buffer.length > 0);
 
         return players;
     }
@@ -344,16 +345,16 @@ class Util {
     static parseRulesBuffer(buffer) {
         //we ignore first two bytes because they are useless
         let rules = {};
-        let offset = 2;
+        buffer = buffer.slice(2);
         
         do {
-            let r = bp.unpack("<SS", buffer, offset);
+            let r = bp.unpack("<SS", buffer);
             if (!r) break;
 
             rules[r[0]] = r[1];
-            offset += bp.calcLength("<SS", r);
+            buffer = buffer.slice(bp.calcLength("<SS", r));
         }
-        while (offset < buffer.length);
+        while (buffer.length > 0);
 
         return rules;
     }

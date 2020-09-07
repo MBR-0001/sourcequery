@@ -7,31 +7,38 @@ class SourceQuery {
 }
 
 interface ServerInfo {
-    protocol: number,
-    name: string,
-    map: string,
-    folder: string,
-    game: string,
-    appid: number,
-    players: number,
-    maxplayers: number,
-    bots: number,
-    servertype: string,
-    environment: string,
-    password: number,
-    vac: number,
-    version: string,
-    port: number,
-    steamID: number,
-    keywords: string,
-    gameID: number
+    protocol: number;
+    name: string;
+    map: string;
+    folder: string;
+    game: string;
+    appid: number;
+    players: number;
+    maxplayers: number;
+    bots: number;
+    servertype: string;
+    environment: string;
+    password: boolean;
+    vac: boolean;
+    version: string;
+    port?: number;
+    steamID?: number;
+    keywords?: string;
+    gameID?: number;
+    ship?: ShipInfo;
+}
+
+interface ShipInfo {
+    mode: number;
+    witnesses: number;
+    duration: number;
 }
 
 interface PlayerInfo {
-    index: number,
-    name: string,
-    score: number,
-    online: number
+    index: number;
+    name: string;
+    score: number;
+    online: number;
 }
 
 export = SourceQuery;

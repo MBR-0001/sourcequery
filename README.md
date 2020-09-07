@@ -1,6 +1,7 @@
 # SourceQuery
 
 https://www.npmjs.com/package/sourcequery but it doesn't suck
+
 Valve docs: https://developer.valvesoftware.com/wiki/Server_queries
 
 ## Usage

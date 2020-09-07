@@ -1,10 +1,10 @@
 const SourceQuery = require("./index");
 
-async function Test() {
-    const query = new SourceQuery("139.99.124.97", 28075, 5000, true);
-    query.getPlayers().then(players => console.log("players: " + players.length));
-    query.getRules().then(rules => console.log("rules: " + Object.keys(rules).length));
-    query.getInfo().then(info => console.log("info: " + Object.keys(info).length));
+function Test(ip = "139.99.124.97", port = 28075) {
+    const query = new SourceQuery(ip, port, 5000, true);
+    query.getPlayers().then(players => console.log(players, players.length));
+    query.getRules().then(rules => console.log(rules));
+    query.getInfo().then(info => console.log(info));
 }
 
 try { Test(); }
