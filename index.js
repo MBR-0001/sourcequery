@@ -213,7 +213,7 @@ class SourceQuery {
                     
                     if ((EDF & 0x20) !== 0) {
                         info.keywords = bp.unpack("<S", buffer)[0];
-                        buffer = buffer.slice(info.keywords.length + 1); //length + "\0"
+                        buffer = buffer.slice(bp.calcLength("<S", [info.keywords]));
                         info.keywords = info.keywords.trim();
                     }
                     
