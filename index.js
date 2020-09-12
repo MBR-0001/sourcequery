@@ -17,18 +17,49 @@ const ids = {
 
 class Answer {
     constructor() {
+        /**
+         * @type {Buffer[]}
+         */
         this.parts = [];
         this.partsfound = 0;
+        this.goldsource = false;
     }
 
     /**
      * @param {Buffer} buffer 
      */
     add(buffer) {
-        let head = bp.unpack("<ibbh", buffer);
-        this.totalpackets = head[1];
-        this.partsfound++;
-        this.parts[head[2]] = buffer;
+        if (!this.goldsource) {
+            let head = bp.unpack("<ibbh", buffer);
+
+            let number = head[2];
+
+            if (number < 0 || (number != this.parts.length && this.parts.length != 0)) {
+                this.goldsource = true;
+                return this.add(buffer);
+            }
+
+            if (this.totalpackets == undefined) this.totalpackets = head[1];
+    
+            this.partsfound++;
+            this.parts[number] = buffer.slice(bp.calcLength("<ibbh", head));
+        }
+        else {
+            //Upper 4 bits represent the number of the current packet (starting at 0) and bottom 4 bits represent the total number of packets (2 to 15).
+            let head = bp.unpack("<ib", buffer);
+
+            /**
+             * @type {string}
+             */
+            let binary = head[1].toString(2).padStart(8, "0");
+            let number = parseInt(binary.slice(0, 4), 2);
+            let total = parseInt(binary.slice(4, 8), 2);
+
+            if (this.totalpackets == undefined) this.totalpackets = total;
+
+            this.partsfound++;
+            this.parts[number] = buffer.slice(bp.calcLength("<ib", head));
+        }
     }
 
     get complete() {
@@ -36,14 +67,7 @@ class Answer {
     }
 
     assemble() {
-        let combined = [];
-        
-        for (let i = 0; i < this.parts.length; i++) {
-            let head = bp.unpack("<ibb", this.parts[i]);
-            combined.push(this.parts[i].slice(head[2] == 1 ? 16 : 8));
-        }
-
-        return Buffer.concat(combined).slice(4);
+        return Buffer.concat(this.parts).slice(4);
     }
 }
 
@@ -90,9 +114,9 @@ class SQUnpacker extends EventEmitter {
             }
 
             ans.add(buffer);
-            
+
             if (ans.complete) {
-                this.emit("message", ans.assemble());
+                this.emit("message", ans.assemble(), ans.goldsource);
                 delete this.answers[ansID];
             }
         }
@@ -146,12 +170,13 @@ class SourceQuery {
                 
                 /**
                  * @param {Buffer} buffer 
+                 * @param {boolean?} goldsource
                  */
-                let relayResponse = buffer => {
+                let relayResponse = (buffer, goldsource) => {
                     if (buffer.length < 1) return;
 
                     let header = String.fromCharCode(buffer[0]);
-                    if (!responseCode.includes(header)) return;
+                    if (!responseCode.includes(header) && !goldsource) return;
 
                     this.unpacker.off("message", relayResponse);
                     clearTimeout(giveUpTimer);
@@ -236,6 +261,7 @@ class SourceQuery {
 
             do {
                 data = await this._getPlayers().catch(() => {});
+                attempts++;
             }
             while (attempts < 10 && !data);
 
@@ -270,6 +296,7 @@ class SourceQuery {
 
             do {
                 data = await this._getRules().catch(() => {});
+                attempts++;
             }
             while (attempts < 10 && !data);
 
