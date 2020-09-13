@@ -34,7 +34,7 @@ class Answer {
 
             let number = head[2];
 
-            if (number < 0 || (number != this.parts.length && this.parts.length != 0)) {
+            if (number < 0 || number != this.parts.length) {
                 this.goldsource = true;
                 return this.add(buffer);
             }
@@ -44,6 +44,7 @@ class Answer {
             this.partsfound++;
             this.parts[number] = buffer.slice(bp.calcLength("<ibbh", head));
         }
+        
         else {
             //Upper 4 bits represent the number of the current packet (starting at 0) and bottom 4 bits represent the total number of packets (2 to 15).
             let head = bp.unpack("<ib", buffer);
