@@ -21,7 +21,6 @@ class Answer {
          * @type {Buffer[]}
          */
         this.parts = [];
-        this.partsfound = 0;
         this.goldsource = false;
     }
 
@@ -41,7 +40,6 @@ class Answer {
 
             if (this.totalpackets == undefined) this.totalpackets = head[1];
     
-            this.partsfound++;
             this.parts[number] = buffer.slice(bp.calcLength("<ibbh", head));
         }
         
@@ -49,22 +47,17 @@ class Answer {
             //Upper 4 bits represent the number of the current packet (starting at 0) and bottom 4 bits represent the total number of packets (2 to 15).
             let head = bp.unpack("<ib", buffer);
 
-            /**
-             * @type {string}
-             */
-            let binary = head[1].toString(2).padStart(8, "0");
-            let number = parseInt(binary.slice(0, 4), 2);
-            let total = parseInt(binary.slice(4, 8), 2);
+            let number = (head[1] & 240) / 16;
+            let total = head[1] & 15;
 
             if (this.totalpackets == undefined) this.totalpackets = total;
 
-            this.partsfound++;
             this.parts[number] = buffer.slice(bp.calcLength("<ib", head));
         }
     }
 
     get complete() {
-        return this.partsfound == this.totalpackets;
+        return this.parts.length == this.totalpackets;
     }
 
     assemble() {
