@@ -7,7 +7,7 @@ let servers = [
 function TestServer(ip) {
     return new Promise((resolve, reject) => {
         let split = ip.split(":");
-        const query = new SourceQuery(split[0], split[1], 1e3);
+        const query = new SourceQuery(split[0], split[1], 5e3);
 
         let failed = [];
 
