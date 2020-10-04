@@ -1,25 +1,25 @@
 const SourceQuery = require("./index");
 
 let servers = [
+    "87.98.228.196:27040",
     "139.99.124.97:28075",
+    "45.77.93.2:27015",
+    "2.59.135.79:2303"
 ];
 
-function TestServer(ip) {
-    return new Promise((resolve, reject) => {
-        let split = ip.split(":");
-        const query = new SourceQuery(split[0], split[1], 5e3);
+async function TestServer(ip) {
+    let split = ip.split(":");
+    const query = new SourceQuery(split[0], split[1], 5e3);
 
-        let failed = [];
+    let failed = [];
+    let rv = {};
 
-        query.getInfo().catch(() => failed.push("info")).finally(() => {
-            query.getPlayers().catch(() => failed.push("players")).finally(() => {
-                query.getRules().catch(() => failed.push("rules")).finally(() => {
-                    if (failed.length == 0) resolve();
-                    else reject(failed);
-                });
-            });
-        });
-    });
+    rv.info = await query.getInfo().catch(() => failed.push("info"));
+    rv.players = await query.getPlayers().catch(() => failed.push("players"));
+    rv.rules = await query.getRules().catch(() => failed.push("rules"));
+
+    if (failed.length == 0) return rv;
+    else throw failed;
 }
 
 async function TestServers() {
@@ -36,7 +36,10 @@ async function TestServers() {
     }
 }
 
-TestServers();
+let last = process.argv[process.argv.length - 1];
+if (last == __filename) TestServers();
+else TestServer(last).then(o => console.log(o), failed => console.log(failed));
+
 
 process.on("uncaughtException", e => {
     console.log(e);

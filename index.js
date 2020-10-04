@@ -1,4 +1,3 @@
-const bp = require("bufferpack");
 const dgram = require("dgram");
 const EventEmitter = require("events");
 
@@ -29,30 +28,28 @@ class Answer {
      */
     add(buffer) {
         if (!this.goldsource) {
-            let head = bp.unpack("<ibbh", buffer);
-
-            let number = head[2];
+            let total = buffer.readInt8();
+            let number = buffer.readInt8(1);
 
             if (number < 0 || number != this.parts.length) {
                 this.goldsource = true;
                 return this.add(buffer);
             }
 
-            if (this.totalpackets == undefined) this.totalpackets = head[1];
+            if (this.totalpackets == undefined) this.totalpackets = total;
     
-            this.parts[number] = buffer.slice(bp.calcLength("<ibbh", head));
+            this.parts[number] = buffer.slice(4);
         }
         
         else {
             //Upper 4 bits represent the number of the current packet (starting at 0) and bottom 4 bits represent the total number of packets (2 to 15).
-            let head = bp.unpack("<ib", buffer);
-
-            let number = (head[1] & 240) / 16;
-            let total = head[1] & 15;
+            let num = buffer.readInt8();
+            let number = (num & 240) / 16;
+            let total = num & 15;
 
             if (this.totalpackets == undefined) this.totalpackets = total;
 
-            this.parts[number] = buffer.slice(bp.calcLength("<ib", head));
+            this.parts[number] = buffer.slice(1);
         }
     }
 
@@ -86,11 +83,7 @@ class SQUnpacker extends EventEmitter {
      * @param {Buffer} buffer 
      */
     readMessage(buffer) {
-        //this causes an exception every now and then, idk why
-        let unpacked = bp.unpack("<i", buffer);
-        if (!unpacked) return;
-
-        let header = unpacked[0];
+        let header = buffer.readInt32LE();
         buffer = buffer.slice(4);
 
         if (header == -1) {
@@ -99,7 +92,7 @@ class SQUnpacker extends EventEmitter {
         }
         
         if (header == -2) {
-            let ansID = bp.unpack("<i", buffer)[0];
+            let ansID = buffer.readInt32LE();
             let ans = this.answers[ansID];
 
             if (!ans) {
@@ -107,7 +100,7 @@ class SQUnpacker extends EventEmitter {
                 setTimeout(() => delete this.answers[ansID], this.timeout);
             }
 
-            ans.add(buffer);
+            ans.add(buffer.slice(4));
 
             if (ans.complete) {
                 this.emit("message", ans.assemble(), ans.goldsource);
@@ -192,52 +185,91 @@ class SourceQuery {
 
     getInfo() {
         return new Promise((resolve, reject) => {
-            this.send(bp.pack("<isS", [-1, ids.A2S_INFO, "Source Engine Query"]), [ids.S2A_INFO]).then(({ buffer }) => {
-                let infoArray = bp.unpack("<bSSSShBBBssBB", buffer);
-                let info = Util.combine(["protocol", "name", "map", "folder", "game", "appid", "players", "maxplayers", "bots", "servertype", "environment", "password", "vac"], infoArray);
-                
-                info.password = Boolean(info.password);
-                info.vac = Boolean(info.vac);
+            let buffer = Buffer.alloc(25, 0xFF);
+            buffer.writeInt8(ids.A2S_INFO.charCodeAt(0), 4);
+            buffer.write("Source Engine Query\0", 5);
 
-                buffer = buffer.slice(bp.calcLength("<bSSSShBBBssBB", infoArray));
+            this.send(buffer, [ids.S2A_INFO]).then(({ buffer }) => {
+                let info = {
+                    protocol: buffer.readInt8(),
+                    name: Util.getString(buffer, 1),
+                    map: "",
+                    folder: "",
+                    game: "",
+                    appid: 0,
+                    players: 0,
+                    maxplayers: 0,
+                    bots: 0,
+                    servertype: "",
+                    environment: "",
+                    password: false,
+                    vac: false
+                };
+
+                buffer = buffer.slice(1 + info.name.length + 1);
+
+                info.map = Util.getString(buffer);
+                info.folder = Util.getString(buffer, info.map.length + 1);
+                info.game = Util.getString(buffer, info.map.length + info.folder.length + 2);
+
+                buffer = buffer.slice(info.map.length + info.folder.length + info.game.length + 3);
+
+                info.appid = buffer.readUInt16LE();
+                info.players = buffer.readUInt8(2);
+                info.maxplayers = buffer.readUInt8(3);
+                info.bots = buffer.readUInt8(4);
+
+                buffer = buffer.slice(5);
+
+                info.servertype = String.fromCharCode(buffer.readInt8());
+                info.environment = String.fromCharCode(buffer.readInt8(1));
+
+                info.password = Boolean(buffer.readUInt8(2));
+                info.vac = Boolean(buffer.readUInt8(3));
+
+                buffer = buffer.slice(4);
 
                 if (info.appid == 2400) {
-                    info.ship = Util.combine(["mode", "witnesses", "duration"], bp.unpack("<bbb", buffer));
+                    info.ship = {
+                        mode: buffer.readInt8(),
+                        witnesses: buffer.readInt8(1),
+                        duration: buffer.readInt8(2)
+                    };
                     buffer = buffer.slice(3);
                 }
                 
-                info.version = bp.unpack("<S", buffer)[0];
-                buffer = buffer.slice(bp.calcLength("<S", [info.version]));
+                info.version = Util.getString(buffer);
+                buffer = buffer.slice(info.version.length + 1);
 
                 if (buffer.length > 1) {
-                    let EDF = bp.unpack("<b", buffer)[0];
+                    let EDF = buffer.readInt8();
                     buffer = buffer.slice(1);
                     
                     if ((EDF & 0x80) !== 0) {
-                        info.port = bp.unpack("<h", buffer)[0];
+                        info.port = buffer.readInt16LE();
                         buffer = buffer.slice(2);
                     }
                     
                     if ((EDF & 0x10) !== 0) {
-                        info.steamID = bp.unpack("<ii", buffer)[0];
+                        info.steamID = buffer.readBigInt64LE().toString();
                         buffer = buffer.slice(8);
                     }
                     
                     if ((EDF & 0x40) !== 0) {
-                        let tvinfo = bp.unpack("<hS", buffer);
-                        info["tv-port"] = tvinfo[0];
-                        info["tv-name"] = tvinfo[1];
-                        buffer = buffer.slice(bp.calcLength("<hS", tvinfo));
+                        info["tv-port"] = buffer.readInt16LE();
+                        buffer = buffer.slice(2);
+                        info["tv-name"] = Util.getString(buffer);
+                        buffer = buffer.slice(info["tv-name"].length + 1);
                     }
                     
                     if ((EDF & 0x20) !== 0) {
-                        info.keywords = bp.unpack("<S", buffer)[0];
-                        buffer = buffer.slice(bp.calcLength("<S", [info.keywords]));
+                        info.keywords = Util.getString(buffer);
+                        buffer = buffer.slice(info.keywords.length + 1);
                         info.keywords = info.keywords.trim();
                     }
                     
                     if ((EDF & 0x01) !== 0) {
-                        info.gameID = bp.unpack("<ii", buffer)[0];
+                        info.gameID = buffer.readBigInt64LE().toString();
                         buffer = buffer.slice(8);
                     }
                 }
@@ -269,10 +301,9 @@ class SourceQuery {
      */
     _getPlayers() {
         return new Promise((resolve, reject) => {
-            this.send(bp.pack("<isi", [-1, ids.A2S_PLAYER, -1]), [ids.S2A_SERVERQUERY_GETCHALLENGE, ids.S2A_PLAYER]).then(data => {
+            this.send(Util.createChallenge(ids.A2S_PLAYER), [ids.S2A_SERVERQUERY_GETCHALLENGE, ids.S2A_PLAYER]).then(data => {
                 if (data.header == ids.S2A_SERVERQUERY_GETCHALLENGE) {
-                    let key = bp.unpack("<i", data.buffer)[0];
-                    this.send(bp.pack("<isi", [-1, ids.A2S_PLAYER, key]), [ids.S2A_PLAYER]).then(player_data => {
+                    this.send(Util.createChallenge(ids.A2S_PLAYER, data.buffer.readInt32LE()), [ids.S2A_PLAYER]).then(player_data => {
                         resolve(Util.parsePlayerBuffer(player_data.buffer));
                     }, failed => reject(failed));
                 }
@@ -301,13 +332,12 @@ class SourceQuery {
 
     _getRules() {
         return new Promise((resolve, reject) => {
-            this.send(bp.pack("<isi", [-1, ids.A2S_RULES, -1]), [ids.S2A_SERVERQUERY_GETCHALLENGE, ids.S2A_RULES]).then(data => {
+            this.send(Util.createChallenge(ids.A2S_RULES), [ids.S2A_SERVERQUERY_GETCHALLENGE, ids.S2A_RULES]).then(data => {
                 let header = data.header;
                 let buffer = data.buffer;
 
                 if (header == ids.S2A_SERVERQUERY_GETCHALLENGE) {
-                    let key = bp.unpack("<i", buffer)[0];
-                    this.send(bp.pack("<isi", [-1, ids.A2S_RULES, key]), [ids.S2A_RULES]).then(rules_data => {
+                    this.send(Util.createChallenge(ids.A2S_RULES, data.buffer.readInt32LE()), [ids.S2A_RULES]).then(rules_data => {
                         resolve(Util.parseRulesBuffer(rules_data.buffer));
                     }, failed => reject(failed));
                 }
@@ -347,15 +377,25 @@ class Util {
         let players = [];
         buffer = buffer.slice(1);
 
-        do {
-            let p = bp.unpack("<bSif", buffer);
-            if (!p) break;
+        while (buffer.length > 0) {
+            let obj = { index: 0 };
+            //index is broken
+            buffer = buffer.slice(1);
 
-            players.push(Util.combine(["index", "name", "score", "online"], p));
-            players[players.length - 1].index = players.length - 1;
-            buffer = buffer.slice(bp.calcLength("<bSif", p));
+            try {
+                obj.name = Util.getString(buffer);
+                buffer = buffer.slice(obj.name.length + 1);
+    
+                obj.score = buffer.readInt32LE();
+                obj.online = buffer.readFloatLE(4);
+
+                players.push(obj);
+                players[players.length - 1].index = players.length - 1;
+
+                buffer = buffer.slice(8);
+            }
+            catch (ex) { break; }
         }
-        while (buffer.length > 0);
 
         return players;
     }
@@ -369,15 +409,51 @@ class Util {
         buffer = buffer.slice(2);
         
         do {
-            let r = bp.unpack("<SS", buffer);
-            if (!r) break;
+            let key = Util.getString(buffer);
+            if (!key) break;
 
-            rules[r[0]] = r[1];
-            buffer = buffer.slice(bp.calcLength("<SS", r));
+            buffer = buffer.slice(key.length + 1);
+
+            let val = Util.getString(buffer);
+            buffer = buffer.slice(val.length + 1);
+
+            rules[key] = val;
         }
         while (buffer.length > 0);
 
         return rules;
+    }
+
+    /**
+     * @param {Buffer} buffer 
+     */
+    static getStringLength(buffer, offset = 0) {
+        for (let i = offset; i < buffer.length; i++) {
+            if (buffer[i] == 0) return i;
+        }
+        return -1;
+    }
+
+    /**
+     * @param {Buffer} buffer 
+     */
+    static getString(buffer, offset = 0) {
+        var length = this.getStringLength(buffer, offset);
+        if (length == -1) return "";
+
+        return buffer.toString(undefined, offset, length);
+    }
+
+    /**
+     * @param {string} header 
+     * @param {number?} challenge_number 
+     */
+    static createChallenge(header, challenge_number = undefined) {
+        let buffer = Buffer.alloc(9, 0xFF);
+        buffer.writeInt8(header.charCodeAt(), 4);
+
+        if (challenge_number) buffer.writeInt32LE(challenge_number, 5);
+        return buffer;
     }
 }
 

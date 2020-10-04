@@ -22,9 +22,9 @@ interface ServerInfo {
     vac: boolean;
     version: string;
     port?: number;
-    steamID?: number;
+    steamID?: string;
     keywords?: string;
-    gameID?: number;
+    gameID?: string;
     ship?: ShipInfo;
 }
 
