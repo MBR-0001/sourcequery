@@ -186,7 +186,7 @@ class SourceQuery {
     getInfo() {
         return new Promise((resolve, reject) => {
             let buffer = Buffer.alloc(25, 0xFF);
-            buffer.writeInt8(ids.A2S_INFO.charCodeAt(0), 4);
+            buffer.writeInt8(ids.A2S_INFO.charCodeAt(), 4);
             buffer.write("Source Engine Query\0", 5);
 
             this.send(buffer, [ids.S2A_INFO]).then(({ buffer }) => {

@@ -1,6 +1,6 @@
 {
   "name": "sourcequery",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "https://www.npmjs.com/package/sourcequery but it doesn't suck",
   "main": "index.js",
   "scripts": {
