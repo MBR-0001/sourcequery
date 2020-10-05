@@ -358,18 +358,6 @@ class SourceQuery {
 
 class Util {
     /**
-    * @param {string[]} keys 
-    * @param {any[]} values 
-    */
-    static combine(keys, values) {
-        let pairs = {};
-        for (let i = 0; i < values.length; i++) {
-            pairs[keys[i]] = values[i];
-        }
-        return pairs;
-    }
-
-    /**
      * @param {Buffer} buffer 
      */
     static parsePlayerBuffer(buffer) {
@@ -438,7 +426,7 @@ class Util {
      * @param {Buffer} buffer 
      */
     static getString(buffer, offset = 0) {
-        var length = this.getStringLength(buffer, offset);
+        let length = this.getStringLength(buffer, offset);
         if (length == -1) return "";
 
         return buffer.toString(undefined, offset, length);
