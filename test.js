@@ -22,11 +22,11 @@ async function TestServer(ip) {
     else throw failed;
 }
 
-async function TestServers() {
+async function TestServers(log = false) {
     let failed = [];
 
     for (let server of servers) {
-        await TestServer(server).catch(x => failed.push(server + " - " + x));
+        await TestServer(server).then(x => { if (log) console.log(x); }).catch(x => failed.push(server + " - " + x));
     }
 
     console.log("Test finished");
@@ -38,6 +38,7 @@ async function TestServers() {
 
 let last = process.argv[process.argv.length - 1];
 if (last == __filename) TestServers();
+else if (last == "log") TestServers(true);
 else TestServer(last).then(o => console.log(o), failed => console.log(failed));
 
 

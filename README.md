@@ -15,7 +15,7 @@ Example usage:
 ```js
 const SourceQuery = require('sourcequery');
 
-const query = new SourceQuery('127.0.0.1', 28015, 1000, true); // 1000ms timeout, automatically close connection 250ms after last request
+const query = new SourceQuery('127.0.0.1', 28015, 1000, true); // 1000ms timeout, automatically close connection after last request [last 2 options are optional]
 
 query.getInfo().then(info => console.log('Server Info:', info));
 query.getPlayers().then(players => console.log('Online Players:', players));
@@ -53,3 +53,8 @@ x | All HL1/HL2 games and mods |
 529180 | [Dark and Light](https://store.steampowered.com/app/529180/) |
 736220 | [Post Scriptum](https://store.steampowered.com/app/736220/) |
 834910 | [ATLAS](https://store.steampowered.com/app/834910/) |
+
+## Notes
+- Compression is not supported, I don't know of any games that use it
+- Player list gets fucked up if people put weird shit in their names (emojis and other weird shit)
+- Since 1.0.5 steamID and gameID in getInfo are strings (they are BigInt and it cannot be JSON.stringify-d)
