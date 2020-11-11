@@ -153,32 +153,32 @@ class SourceQuery {
                     return reject(err);
                 }
 
-                let giveUpTimer = null;
+                let timer = null;
                 
                 /**
                  * @param {Buffer} buffer 
                  * @param {boolean?} goldsource
                  */
-                let relayResponse = (buffer, goldsource) => {
+                let handler = (buffer, goldsource) => {
                     if (buffer.length < 1) return;
 
                     let header = String.fromCharCode(buffer[0]);
                     if (!responseCode.includes(header) && !goldsource) return;
 
-                    this.unpacker.off("message", relayResponse);
-                    clearTimeout(giveUpTimer);
+                    this.unpacker.off("message", handler);
+                    clearTimeout(timer);
                     
                     resolve({buffer: buffer.slice(1), header: header});
                     this.queryEnded();
                 };
                 
-                giveUpTimer = setTimeout(() => {
-                    this.unpacker.off("message", relayResponse);
+                timer = setTimeout(() => {
+                    this.unpacker.off("message", handler);
                     reject(new Error("timeout"));
                     this.queryEnded();
                 }, this.timeout);
                 
-                this.unpacker.on("message", relayResponse);
+                this.unpacker.on("message", handler);
             });
         });
     }
