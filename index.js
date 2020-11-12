@@ -206,13 +206,13 @@ class SourceQuery {
                     vac: false
                 };
 
-                buffer = buffer.slice(1 + info.name.length + 1);
+                buffer = buffer.slice(1 + Buffer.byteLength(info.name) + 1);
 
                 info.map = Util.getString(buffer);
-                info.folder = Util.getString(buffer, info.map.length + 1);
-                info.game = Util.getString(buffer, info.map.length + info.folder.length + 2);
+                info.folder = Util.getString(buffer, Buffer.byteLength(info.map) + 1);
+                info.game = Util.getString(buffer, Buffer.byteLength(info.map) + Buffer.byteLength(info.folder) + 2);
 
-                buffer = buffer.slice(info.map.length + info.folder.length + info.game.length + 3);
+                buffer = buffer.slice(Buffer.byteLength(info.map) + Buffer.byteLength(info.folder) + Buffer.byteLength(info.game) + 3);
 
                 info.appid = buffer.readUInt16LE();
                 info.players = buffer.readUInt8(2);
@@ -239,7 +239,7 @@ class SourceQuery {
                 }
                 
                 info.version = Util.getString(buffer);
-                buffer = buffer.slice(info.version.length + 1);
+                buffer = buffer.slice(Buffer.byteLength(info.version) + 1);
 
                 if (buffer.length > 1) {
                     let EDF = buffer.readInt8();
@@ -259,13 +259,12 @@ class SourceQuery {
                         info["tv-port"] = buffer.readInt16LE();
                         buffer = buffer.slice(2);
                         info["tv-name"] = Util.getString(buffer);
-                        buffer = buffer.slice(info["tv-name"].length + 1);
+                        buffer = buffer.slice(Buffer.byteLength(info["tv-name"]) + 1);
                     }
                     
                     if ((EDF & 0x20) !== 0) {
                         info.keywords = Util.getString(buffer);
-                        buffer = buffer.slice(info.keywords.length + 1);
-                        info.keywords = info.keywords.trim();
+                        buffer = buffer.slice(Buffer.byteLength(info.keywords) + 1);
                     }
                     
                     if ((EDF & 0x01) !== 0) {
@@ -372,7 +371,7 @@ class Util {
 
             try {
                 obj.name = Util.getString(buffer);
-                buffer = buffer.slice(obj.name.length + 1);
+                buffer = buffer.slice(Buffer.byteLength(obj.name) + 1);
     
                 obj.score = buffer.readInt32LE();
                 obj.online = buffer.readFloatLE(4);
@@ -400,10 +399,10 @@ class Util {
             let key = Util.getString(buffer);
             if (!key) break;
 
-            buffer = buffer.slice(key.length + 1);
+            buffer = buffer.slice(Buffer.byteLength(key) + 1);
 
             let val = Util.getString(buffer);
-            buffer = buffer.slice(val.length + 1);
+            buffer = buffer.slice(Buffer.byteLength(val) + 1);
 
             rules[key] = val;
         }
