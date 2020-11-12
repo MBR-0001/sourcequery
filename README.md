@@ -56,5 +56,5 @@ x | All HL1/HL2 games and mods |
 
 ## Notes
 - Compression is not supported, I don't know of any games that use it
-- Player list gets fucked up if people put weird shit in their names (emojis and other weird shit)
+- ~~Player list gets fucked up if people put weird shit in their names (emojis and other weird shit)~~ FIXED IN 1.1.0
 - Since 1.0.5 steamID and gameID in getInfo are strings (they are BigInt and it cannot be JSON.stringify-d)

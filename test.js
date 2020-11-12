@@ -3,7 +3,8 @@ const SourceQuery = require("./index");
 let servers = [
     "87.98.228.196:27040",
     "139.99.124.97:28075",
-    "2.59.135.79:2303"
+    "2.59.135.79:2303",
+    "51.81.124.130:28015"
 ];
 
 async function TestServer(ip) {
@@ -38,7 +39,10 @@ async function TestServers(log = false) {
 let last = process.argv[process.argv.length - 1];
 if (last == __filename) TestServers();
 else if (last == "log") TestServers(true);
-else TestServer(last).then(o => console.log(o), failed => console.log(failed));
+else TestServer(last).then(o => {
+    console.log(o);
+    //for (let p of o.players) console.log(p);
+}, failed => console.log(failed));
 
 
 process.on("uncaughtException", e => {
