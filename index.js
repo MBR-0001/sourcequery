@@ -113,10 +113,10 @@ class SourceQuery {
      * @param {boolean} autoclose 
      */
     constructor(address, port, timeout = 1000, autoclose = true) {
-        this.address = address;
-        this.port = port;
-        this.timeout = timeout;
-        this.autoclose = autoclose;
+        this.address = String(address);
+        this.port = Number(port);
+        this.timeout = Number(timeout);
+        this.autoclose = Boolean(autoclose);
 
         this.queries = 0;
 

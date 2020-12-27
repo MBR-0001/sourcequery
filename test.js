@@ -9,7 +9,7 @@ let servers = [
 
 async function TestServer(ip) {
     let split = ip.split(":");
-    const query = new SourceQuery(split[0], split[1], 5e3);
+    const query = new SourceQuery(split[0], split[1], process.env.CI_TIMEOUT || 5e3);
 
     let failed = [];
     let rv = {};
