@@ -177,7 +177,7 @@ class SourceQuery {
                 
                 timer = setTimeout(() => {
                     this.unpacker.off("message", handler);
-                    reject(new Error("timeout"));
+                    reject(new Error("timed out waiting for response from " + this.address));
                     this.queryEnded();
                 }, this.timeout);
                 
@@ -200,7 +200,7 @@ class SourceQuery {
             }
             while (attempts < 10 && !data);
 
-            if (!data) reject(new Error("timed out"));
+            if (!data) reject(new Error("timed out waiting for " + request_fn + " response from " + this.address));
             else resolve(data);
         });
     }
