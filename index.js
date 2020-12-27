@@ -97,7 +97,7 @@ class SQUnpacker extends EventEmitter {
 
             ans.add(buffer.slice(4));
 
-            if (ans.parts.length == ans.totalpackets) {
+            if (ans.parts.filter(x => x).length == ans.totalpackets) {
                 this.emit("message", ans.assemble(), ans.goldsource);
                 delete this.answers[id];
             }
@@ -241,6 +241,13 @@ class SourceQuery {
         if (this.queries == 0 && !this.client.closed) {
             this.client.close();
         }
+    }
+
+    static preflightCheck(address, port) {
+        return new Promise((resolve, reject) => {
+            let query = new SourceQuery(address, port);
+            query.send(Util.createInfoChallenge(ids.A2S_INFO), [ids.S2A_INFO, ids.S2A_SERVERQUERY_GETCHALLENGE]).then(() => resolve()).catch(() => reject("Preflight failed"));
+        });
     }
 }
 

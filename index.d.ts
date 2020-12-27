@@ -4,6 +4,7 @@ class SourceQuery {
     getPlayers(): Promise<PlayerInfo[]>;
     getRules(): Promise<Record<string, string>>;
     close(): void;
+    static preflightCheck(address: string, port: number): Promise<void>;
 }
 
 interface ServerInfo {

@@ -2,7 +2,9 @@ const SourceQuery = require("./index");
 
 let servers = [
     "139.99.124.97:28075",
-    "2.59.135.79:2303"
+    "2.59.135.79:2303",
+    "216.52.148.47:27015",
+    "145.239.205.157:28016"
 ];
 
 async function TestServer(ip) {
@@ -20,11 +22,18 @@ async function TestServer(ip) {
     else throw failed;
 }
 
-async function TestServers(log = false) {
+async function TestServers(log = false, preflight = false) {
     console.log("Starting test, CI: " + !!process.env.CI);
 
     let failed = [];
 
+    if (preflight) {
+        for (let server of servers) {
+            let s = server.split(":");
+            await SourceQuery.preflightCheck(s[0], s[1]).catch(x => failed.push(server + " - " + x));
+        }
+    }
+    
     for (let server of servers) {
         await TestServer(server).then(x => { if (log) console.log(x); }).catch(x => failed.push(server + " - " + x));
     }
@@ -39,6 +48,7 @@ async function TestServers(log = false) {
 let last = process.argv[process.argv.length - 1];
 if (last == __filename) TestServers();
 else if (last == "log") TestServers(true);
+else if (last == "preflight") TestServers(false, true);
 else TestServer(last).then(o => {
     console.log(o);
     //for (let p of o.players) console.log(p);
