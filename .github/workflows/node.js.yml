@@ -8,6 +8,8 @@ on: [push]
 jobs:
   test:
     name: Test
+    env:
+      CI_TIMEOUT: ${{ secrets.CI_TIMEOUT }}
     runs-on: ubuntu-latest
 
     strategy:
