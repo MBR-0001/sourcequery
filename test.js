@@ -2,9 +2,7 @@ const SourceQuery = require("./index");
 
 let servers = [
     "139.99.124.97:28075",
-    "2.59.135.79:2303",
-    "216.52.148.47:27015",
-    //"145.239.205.157:28016"
+    "2.59.135.79:2303"
 ];
 
 async function TestServer(ip) {
@@ -24,7 +22,7 @@ async function TestServer(ip) {
 
 async function TestServers(log = false) {
     console.log("Starting test, CI: " + !!process.env.CI);
-    process.env.CI = false;
+
     let failed = [];
 
     for (let server of servers) {
