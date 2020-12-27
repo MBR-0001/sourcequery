@@ -53,10 +53,6 @@ class Answer {
         }
     }
 
-    get complete() {
-        return this.parts.length == this.totalpackets;
-    }
-
     assemble() {
         return Buffer.concat(this.parts).slice(4);
     }
@@ -64,10 +60,10 @@ class Answer {
 
 class SQUnpacker extends EventEmitter {
     /**
-     * @param {dgram.Socket} messageEmitter 
+     * @param {dgram.Socket} emitter 
      * @param {number} timeout 
      */
-    constructor(messageEmitter, timeout = 1000) {
+    constructor(emitter, timeout = 1000) {
         super();
 
         this.timeout = timeout;
@@ -75,8 +71,7 @@ class SQUnpacker extends EventEmitter {
          * @type {Record<string, Answer>}
          */
         this.answers = {};
-        this.messageEmitter = messageEmitter;
-        this.messageEmitter.on("message", msg => this.readMessage(msg));
+        emitter.on("message", msg => this.readMessage(msg));
     }
 
     /**
@@ -92,19 +87,19 @@ class SQUnpacker extends EventEmitter {
         }
         
         if (header == -2) {
-            let ansID = buffer.readInt32LE();
-            let ans = this.answers[ansID];
+            let id = buffer.readInt32LE();
+            let ans = this.answers[id];
 
             if (!ans) {
-                ans = this.answers[ansID] = new Answer();
-                setTimeout(() => delete this.answers[ansID], this.timeout);
+                ans = this.answers[id] = new Answer();
+                setTimeout(() => delete this.answers[id], this.timeout);
             }
 
             ans.add(buffer.slice(4));
 
-            if (ans.complete) {
+            if (ans.parts.length == ans.totalpackets) {
                 this.emit("message", ans.assemble(), ans.goldsource);
-                delete this.answers[ansID];
+                delete this.answers[id];
             }
         }
     }
@@ -140,10 +135,10 @@ class SourceQuery {
 
     /**
      * @param {Buffer} buffer 
-     * @param {string[]} responseCode 
+     * @param {string[]} allowed_headers 
      * @returns {Promise<{buffer: Buffer, header: string}>}
      */
-    send(buffer, responseCode) {
+    send(buffer, allowed_headers) {
         return new Promise((resolve, reject) => {
             this.queries++;
 
@@ -163,7 +158,7 @@ class SourceQuery {
                     if (buffer.length < 1) return;
 
                     let header = String.fromCharCode(buffer[0]);
-                    if (!responseCode.includes(header) && !goldsource) return;
+                    if (!allowed_headers.includes(header) && !goldsource) return;
 
                     this.unpacker.off("message", handler);
                     clearTimeout(timer);
@@ -183,99 +178,39 @@ class SourceQuery {
         });
     }
 
-    getInfo() {
+    getData(challenge_fn, send_header, receive_header, parse_fn) {
         return new Promise((resolve, reject) => {
-            let buffer = Buffer.alloc(25, 0xFF);
-            buffer.writeInt8(ids.A2S_INFO.charCodeAt(), 4);
-            buffer.write("Source Engine Query\0", 5);
-
-            this.send(buffer, [ids.S2A_INFO]).then(({ buffer }) => {
-                let info = {
-                    protocol: buffer.readInt8(),
-                    name: Util.getString(buffer, 1),
-                    map: "",
-                    folder: "",
-                    game: "",
-                    appid: 0,
-                    players: 0,
-                    maxplayers: 0,
-                    bots: 0,
-                    servertype: "",
-                    environment: "",
-                    password: false,
-                    vac: false
-                };
-
-                buffer = buffer.slice(1 + Buffer.byteLength(info.name) + 1);
-
-                info.map = Util.getString(buffer);
-                info.folder = Util.getString(buffer, Buffer.byteLength(info.map) + 1);
-                info.game = Util.getString(buffer, Buffer.byteLength(info.map) + Buffer.byteLength(info.folder) + 2);
-
-                buffer = buffer.slice(Buffer.byteLength(info.map) + Buffer.byteLength(info.folder) + Buffer.byteLength(info.game) + 3);
-
-                info.appid = buffer.readUInt16LE();
-                info.players = buffer.readUInt8(2);
-                info.maxplayers = buffer.readUInt8(3);
-                info.bots = buffer.readUInt8(4);
-
-                buffer = buffer.slice(5);
-
-                info.servertype = String.fromCharCode(buffer.readInt8());
-                info.environment = String.fromCharCode(buffer.readInt8(1));
-
-                info.password = Boolean(buffer.readUInt8(2));
-                info.vac = Boolean(buffer.readUInt8(3));
-
-                buffer = buffer.slice(4);
-
-                if (info.appid == 2400) {
-                    info.ship = {
-                        mode: buffer.readInt8(),
-                        witnesses: buffer.readInt8(1),
-                        duration: buffer.readInt8(2)
-                    };
-                    buffer = buffer.slice(3);
+            this.send(challenge_fn(send_header), [ids.S2A_SERVERQUERY_GETCHALLENGE, receive_header]).then(data => {
+                if (data.header == ids.S2A_SERVERQUERY_GETCHALLENGE) {
+                    this.send(challenge_fn(send_header, data.buffer.readInt32LE()), [receive_header]).then(({ buffer }) => {
+                        resolve(parse_fn(buffer));
+                    }).catch(reject);
                 }
-                
-                info.version = Util.getString(buffer);
-                buffer = buffer.slice(Buffer.byteLength(info.version) + 1);
-
-                if (buffer.length > 1) {
-                    let EDF = buffer.readInt8();
-                    buffer = buffer.slice(1);
-                    
-                    if ((EDF & 0x80) !== 0) {
-                        info.port = buffer.readInt16LE();
-                        buffer = buffer.slice(2);
-                    }
-                    
-                    if ((EDF & 0x10) !== 0) {
-                        info.steamID = buffer.readBigInt64LE().toString();
-                        buffer = buffer.slice(8);
-                    }
-                    
-                    if ((EDF & 0x40) !== 0) {
-                        info["tv-port"] = buffer.readInt16LE();
-                        buffer = buffer.slice(2);
-                        info["tv-name"] = Util.getString(buffer);
-                        buffer = buffer.slice(Buffer.byteLength(info["tv-name"]) + 1);
-                    }
-                    
-                    if ((EDF & 0x20) !== 0) {
-                        info.keywords = Util.getString(buffer);
-                        buffer = buffer.slice(Buffer.byteLength(info.keywords) + 1);
-                    }
-                    
-                    if ((EDF & 0x01) !== 0) {
-                        info.gameID = buffer.readBigInt64LE().toString();
-                        buffer = buffer.slice(8);
-                    }
-                }
-
-                resolve(info);
-            }, failed => reject(failed));
+                else if (data.header == receive_header) resolve(parse_fn(data.buffer));
+                else reject(new Error("Invalid header for " + send_header +  ": " + data.header));
+            }).catch(reject);
         });
+    }
+
+    getInfo() {
+        // eslint-disable-next-line no-async-promise-executor
+        return new Promise(async (resolve, reject) => {
+            let attempts = 0;
+            let data = null;
+
+            do {
+                data = await this._getInfo().catch(() => {});
+                attempts++;
+            }
+            while (attempts < 10 && !data);
+
+            if (!data) reject(new Error("info timed out"));
+            else resolve(data);
+        });
+    }
+
+    _getInfo() {
+        return this.getData(Util.createInfoChallenge, ids.A2S_INFO, ids.S2A_INFO, Util.parseInfoBuffer);
     }
 
     getPlayers() {
@@ -295,21 +230,8 @@ class SourceQuery {
         });
     }
 
-    /**
-     * @returns {Promise<{}[]>}
-     */
     _getPlayers() {
-        return new Promise((resolve, reject) => {
-            this.send(Util.createChallenge(ids.A2S_PLAYER), [ids.S2A_SERVERQUERY_GETCHALLENGE, ids.S2A_PLAYER]).then(data => {
-                if (data.header == ids.S2A_SERVERQUERY_GETCHALLENGE) {
-                    this.send(Util.createChallenge(ids.A2S_PLAYER, data.buffer.readInt32LE()), [ids.S2A_PLAYER]).then(player_data => {
-                        resolve(Util.parsePlayerBuffer(player_data.buffer));
-                    }, failed => reject(failed));
-                }
-                else if (data.header == ids.S2A_PLAYER) resolve(Util.parsePlayerBuffer(data.buffer));
-                else reject(new Error("Invalid header @ getPlayers: " + data.header));
-            }, failed => reject(failed));
-        });
+        return this.getData(Util.createChallenge, ids.A2S_PLAYER, ids.S2A_PLAYER, Util.parsePlayerBuffer);
     }
 
     getRules() {
@@ -330,22 +252,7 @@ class SourceQuery {
     }
 
     _getRules() {
-        return new Promise((resolve, reject) => {
-            this.send(Util.createChallenge(ids.A2S_RULES), [ids.S2A_SERVERQUERY_GETCHALLENGE, ids.S2A_RULES]).then(data => {
-                let header = data.header;
-                let buffer = data.buffer;
-
-                if (header == ids.S2A_SERVERQUERY_GETCHALLENGE) {
-                    this.send(Util.createChallenge(ids.A2S_RULES, data.buffer.readInt32LE()), [ids.S2A_RULES]).then(rules_data => {
-                        resolve(Util.parseRulesBuffer(rules_data.buffer));
-                    }, failed => reject(failed));
-                }
-                else if (header == ids.S2A_RULES) {
-                    return resolve(Util.parseRulesBuffer(buffer));
-                }
-                else reject(new Error("Invalid header @ getRules: " + header));
-            }, failed => reject(failed));
-        });
+        return this.getData(Util.createChallenge, ids.A2S_RULES, ids.S2A_RULES, Util.parseRulesBuffer);
     }
 
     close() {
@@ -356,6 +263,96 @@ class SourceQuery {
 }
 
 class Util {
+    /**
+     * @param {Buffer} buffer 
+     */
+    static parseInfoBuffer(buffer) {
+        let info = {
+            protocol: buffer.readInt8(),
+            name: Util.getString(buffer, 1),
+            map: "",
+            folder: "",
+            game: "",
+            appid: 0,
+            players: 0,
+            maxplayers: 0,
+            bots: 0,
+            servertype: "",
+            environment: "",
+            password: false,
+            vac: false
+        };
+
+        buffer = buffer.slice(1 + Buffer.byteLength(info.name) + 1);
+
+        info.map = Util.getString(buffer);
+        info.folder = Util.getString(buffer, Buffer.byteLength(info.map) + 1);
+        info.game = Util.getString(buffer, Buffer.byteLength(info.map) + Buffer.byteLength(info.folder) + 2);
+
+        buffer = buffer.slice(Buffer.byteLength(info.map) + Buffer.byteLength(info.folder) + Buffer.byteLength(info.game) + 3);
+
+        info.appid = buffer.readUInt16LE();
+        info.players = buffer.readUInt8(2);
+        info.maxplayers = buffer.readUInt8(3);
+        info.bots = buffer.readUInt8(4);
+
+        buffer = buffer.slice(5);
+
+        info.servertype = String.fromCharCode(buffer.readInt8());
+        info.environment = String.fromCharCode(buffer.readInt8(1));
+
+        info.password = Boolean(buffer.readUInt8(2));
+        info.vac = Boolean(buffer.readUInt8(3));
+
+        buffer = buffer.slice(4);
+
+        if (info.appid == 2400) {
+            info.ship = {
+                mode: buffer.readInt8(),
+                witnesses: buffer.readInt8(1),
+                duration: buffer.readInt8(2)
+            };
+            buffer = buffer.slice(3);
+        }
+        
+        info.version = Util.getString(buffer);
+        buffer = buffer.slice(Buffer.byteLength(info.version) + 1);
+
+        if (buffer.length > 1) {
+            let EDF = buffer.readInt8();
+            buffer = buffer.slice(1);
+            
+            if ((EDF & 0x80) !== 0) {
+                info.port = buffer.readInt16LE();
+                buffer = buffer.slice(2);
+            }
+            
+            if ((EDF & 0x10) !== 0) {
+                info.steamID = buffer.readBigInt64LE().toString();
+                buffer = buffer.slice(8);
+            }
+            
+            if ((EDF & 0x40) !== 0) {
+                info["tv-port"] = buffer.readInt16LE();
+                buffer = buffer.slice(2);
+                info["tv-name"] = Util.getString(buffer);
+                buffer = buffer.slice(Buffer.byteLength(info["tv-name"]) + 1);
+            }
+            
+            if ((EDF & 0x20) !== 0) {
+                info.keywords = Util.getString(buffer);
+                buffer = buffer.slice(Buffer.byteLength(info.keywords) + 1);
+            }
+            
+            if ((EDF & 0x01) !== 0) {
+                info.gameID = buffer.readBigInt64LE().toString();
+                buffer = buffer.slice(8);
+            }
+        }
+
+        return info;
+    }
+
     /**
      * @param {Buffer} buffer 
      */
@@ -440,6 +437,20 @@ class Util {
         buffer.writeInt8(header.charCodeAt(), 4);
 
         if (challenge_number) buffer.writeInt32LE(challenge_number, 5);
+        return buffer;
+    }
+
+    /**
+     * @param {string} header
+     * @param {number} challenge_number 
+     */
+    static createInfoChallenge(header, challenge_number = undefined) {
+        let buffer = Buffer.alloc(challenge_number ? 29 : 25, 0xFF);
+        
+        buffer.writeInt8(header.charCodeAt(), 4);
+        buffer.write("Source Engine Query\0", 5);
+
+        if (challenge_number) buffer.writeInt32LE(challenge_number, 25);
         return buffer;
     }
 }
