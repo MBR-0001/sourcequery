@@ -129,10 +129,16 @@ class SourceQuery {
         this.unpacker = new SQUnpacker(this.client, this.timeout);
     }
 
-    queryEnded() {
-        this.queries--;
+    getInfo() {
+        return this.getData(this._getInfo.bind(this));
+    }
 
-        if (this.autoclose) setTimeout(() => this.close(), 250);
+    getPlayers() {
+        return this.getData(this._getPlayers.bind(this));
+    }
+
+    getRules() {
+        return this.getData(this._getRules.bind(this));
     }
 
     /**
@@ -180,7 +186,26 @@ class SourceQuery {
         });
     }
 
-    getData(challenge_fn, send_header, receive_header, parse_fn) {
+    getData(request_fn) {
+        // eslint-disable-next-line no-async-promise-executor
+        return new Promise(async (resolve, reject) => {
+            let attempts = 0;
+            let data = null;
+
+            do {
+                data = await request_fn().catch(e => {
+                    if (process.env.CI) console.log(e);
+                });
+                attempts++;
+            }
+            while (attempts < 10 && !data);
+
+            if (!data) reject(new Error("timed out"));
+            else resolve(data);
+        });
+    }
+
+    _getData(challenge_fn, send_header, receive_header, parse_fn) {
         return new Promise((resolve, reject) => {
             this.send(challenge_fn(send_header), [ids.S2A_SERVERQUERY_GETCHALLENGE, receive_header]).then(data => {
                 if (data.header == ids.S2A_SERVERQUERY_GETCHALLENGE) {
@@ -194,67 +219,22 @@ class SourceQuery {
         });
     }
 
-    getInfo() {
-        // eslint-disable-next-line no-async-promise-executor
-        return new Promise(async (resolve, reject) => {
-            let attempts = 0;
-            let data = null;
-
-            do {
-                data = await this._getInfo().catch(() => {});
-                attempts++;
-            }
-            while (attempts < 10 && !data);
-
-            if (!data) reject(new Error("info timed out"));
-            else resolve(data);
-        });
-    }
-
     _getInfo() {
-        return this.getData(Util.createInfoChallenge, ids.A2S_INFO, ids.S2A_INFO, Util.parseInfoBuffer);
-    }
-
-    getPlayers() {
-        // eslint-disable-next-line no-async-promise-executor
-        return new Promise(async (resolve, reject) => {
-            let attempts = 0;
-            let data = null;
-
-            do {
-                data = await this._getPlayers().catch(() => {});
-                attempts++;
-            }
-            while (attempts < 10 && !data);
-
-            if (!data) reject(new Error("players timed out"));
-            else resolve(data);
-        });
+        return this._getData(Util.createInfoChallenge, ids.A2S_INFO, ids.S2A_INFO, Util.parseInfoBuffer);
     }
 
     _getPlayers() {
-        return this.getData(Util.createChallenge, ids.A2S_PLAYER, ids.S2A_PLAYER, Util.parsePlayerBuffer);
-    }
-
-    getRules() {
-        // eslint-disable-next-line no-async-promise-executor
-        return new Promise(async (resolve, reject) => {
-            let attempts = 0;
-            let data = null;
-
-            do {
-                data = await this._getRules().catch(() => {});
-                attempts++;
-            }
-            while (attempts < 10 && !data);
-
-            if (!data) reject(new Error("rules timed out"));
-            else resolve(data);
-        });
+        return this._getData(Util.createChallenge, ids.A2S_PLAYER, ids.S2A_PLAYER, Util.parsePlayerBuffer);
     }
 
     _getRules() {
-        return this.getData(Util.createChallenge, ids.A2S_RULES, ids.S2A_RULES, Util.parseRulesBuffer);
+        return this._getData(Util.createChallenge, ids.A2S_RULES, ids.S2A_RULES, Util.parseRulesBuffer);
+    }
+
+    queryEnded() {
+        this.queries--;
+
+        if (this.autoclose) setTimeout(() => this.close(), 250);
     }
 
     close() {
