@@ -198,7 +198,7 @@ class SourceQuery {
                 });
                 attempts++;
             }
-            while (attempts < 10 && !data);
+            while (attempts < 50 && !data);
 
             if (!data) reject(new Error("timed out waiting for " + request_fn + " response from " + this.address));
             else resolve(data);
