@@ -24,6 +24,7 @@ async function TestServer(ip) {
 
 async function TestServers(log = false) {
     console.log("Starting test, CI: " + !!process.env.CI);
+    process.env.CI = false;
     let failed = [];
 
     for (let server of servers) {
