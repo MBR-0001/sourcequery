@@ -121,7 +121,9 @@ class SourceQuery {
         this.queries = 0;
 
         this.client = dgram.createSocket("udp4");
-        this.client.on("error", () => {});
+        this.client.on("error", e => {
+            if (process.env.CI) console.log(e);
+        });
         this.client.on("close", () => this.client.closed = true);
 
         this.unpacker = new SQUnpacker(this.client, this.timeout);
