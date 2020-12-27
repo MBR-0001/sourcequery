@@ -3,8 +3,8 @@ const SourceQuery = require("./index");
 let servers = [
     "139.99.124.97:28075",
     "2.59.135.79:2303",
-    "216.52.148.47:27015",
-    "145.239.205.157:28016"
+    //"216.52.148.47:27015",
+    //"145.239.205.157:28016"
 ];
 
 async function TestServer(ip) {
@@ -14,9 +14,9 @@ async function TestServer(ip) {
     let failed = [];
     let rv = {};
 
-    rv.info = await query.getInfo().catch(() => failed.push("info"));
+    //rv.info = await query.getInfo().catch(() => failed.push("info"));
     rv.players = await query.getPlayers().catch(() => failed.push("players"));
-    rv.rules = await query.getRules().catch(() => failed.push("rules"));
+    //rv.rules = await query.getRules().catch(() => failed.push("rules"));
 
     if (failed.length == 0) return rv;
     else throw failed;
