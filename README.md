@@ -22,6 +22,10 @@ query.getPlayers().then(players => console.log('Online Players:', players));
 query.getRules().then(rules => console.log('Server Rules:', rules));
 //if autoclose is false this method has to be called to stop the query from preventing the process from exiting
 query.close();
+
+
+//in case you only want to check if the server is "alive" you can do the following
+SourceQuery.preflightCheck('127.0.0.1', 28015).then(() => console.log("server is alive!")).catch(() => console.log("server is down!"));
 ```
 
 ## Supported Games
