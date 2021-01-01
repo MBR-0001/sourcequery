@@ -78,7 +78,6 @@ class SQUnpacker extends EventEmitter {
      * @param {Buffer} buffer 
      */
     readMessage(buffer) {
-        console.log(buffer.length);
         let header = buffer.readInt32LE();
         buffer = buffer.slice(4);
 
