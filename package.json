@@ -21,5 +21,8 @@
     "url": "https://github.com/MBR-0001/sourcequery/issues"
   },
   "homepage": "https://github.com/MBR-0001/sourcequery#readme",
-  "dependencies": {}
+  "dependencies": {},
+  "devDependencies": {
+    "node-fetch": "^2.6.1"
+  }
 }

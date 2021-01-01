@@ -29,4 +29,4 @@ jobs:
       run: npm install
 
     - name: Run test
-      run: npm test preflight
+      run: npm test

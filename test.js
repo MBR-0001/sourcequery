@@ -1,11 +1,5 @@
+const fetch = require("node-fetch");
 const SourceQuery = require("./index");
-
-let servers = [
-    "139.99.124.97:28075",
-    "2.59.135.79:2303",
-    //"216.52.148.47:27015",
-    //"145.239.205.157:28016"
-];
 
 async function TestServer(ip) {
     let split = ip.split(":");
@@ -26,16 +20,28 @@ async function TestServers(log = false, preflight = false) {
     console.log("Starting test, CI: " + !!process.env.CI);
 
     let failed = [];
+    let servers = await fetch("https://api.mbr.pw/api/steamquery/tests").then(r => r.json());
+    
+    for (let server of servers) {
+        if (server.address == "Unknown") {
+            server.invalid = true;
+            failed.push(server.name + " failed (no IP)");
+        }
+    }
 
     if (preflight) {
-        for (let server of servers) {
-            let s = server.split(":");
-            await SourceQuery.preflightCheck(s[0], s[1]).catch(x => failed.push(server + " - " + x));
+        for (let server of servers.filter(x => !x.invalid)) {
+            let s = server.address.split(":");
+            await SourceQuery.preflightCheck(s[0], s[1]).then(() => server.pass = true).catch(x => {
+                if (server.broken.some(i => x.includes(i))) return;
+                failed.push("Preflight failed for " + server.address + " (" + server.name + ") - " + x);
+            });
         }
     }
     
-    for (let server of servers) {
-        await TestServer(server).then(x => { if (log) console.log(x); }).catch(x => failed.push(server + " - " + x));
+    for (let server of servers.filter(x => !x.invalid && (x.pass || !preflight))) {
+        console.log(server);
+        await TestServer(server.address).then(x => { if (log) console.log(x); }).catch(x => failed.push(server.address + " (" + server.name + ") - " + x));
     }
 
     console.log("Test finished");
