@@ -40,7 +40,6 @@ async function TestServers(log = false, preflight = false) {
     }
     
     for (let server of servers.filter(x => !x.invalid && (x.pass || !preflight))) {
-        console.log(server);
         await TestServer(server.address).then(x => { if (log) console.log(x); }).catch(x => failed.push(server.address + " (" + server.name + ") - " + x));
     }
 
