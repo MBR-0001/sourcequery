@@ -22,7 +22,5 @@
   },
   "homepage": "https://github.com/MBR-0001/sourcequery#readme",
   "dependencies": {},
-  "devDependencies": {
-    "node-fetch": "^2.6.1"
-  }
+  "devDependencies": {}
 }

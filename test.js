@@ -1,4 +1,3 @@
-const fetch = require("node-fetch");
 const SourceQuery = require("./index");
 
 async function TestServer(ip) {
@@ -20,7 +19,7 @@ async function TestServers(log = false, preflight = false) {
     console.log("Starting test, CI: " + !!process.env.CI);
 
     let failed = [];
-    let servers = await fetch("https://api.mbr.pw/api/steamquery/tests").then(r => r.json());
+    let servers = [];
     
     for (let server of servers) {
         if (server.address == "Unknown") {
