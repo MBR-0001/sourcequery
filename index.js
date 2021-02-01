@@ -113,8 +113,14 @@ class SourceQuery {
      * @param {boolean} autoclose 
      */
     constructor(address, port, timeout = 1000, autoclose = true) {
+        if (!address) throw new Error("Invalid address");
+
+        let _port = Number(port);
+
+        if (_port == undefined || _port <= 0 || _port >= 65535 || isNaN(_port)) throw new Error("Invalid port");
+
         this.address = String(address);
-        this.port = Number(port);
+        this.port = _port;
         this.timeout = Number(timeout);
         this.autoclose = Boolean(autoclose);
 
