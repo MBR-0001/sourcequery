@@ -29,20 +29,20 @@ SourceQuery.preflightCheck('127.0.0.1', 28015).then(() => console.log("server is
 ```
 
 ## Supported Games
-AppID | Game | Notes |
------ | ---- | ----- |
-x | All HL1/HL2 games and mods |
-10 | [Counter-Strike 1.6](https://store.steampowered.com/app/10/) |
-20 | [Team Fortress Classic](https://store.steampowered.com/app/440/) |
-440 | [Team Fortress 2](https://store.steampowered.com/app/440/) |
-550 | [Left 4 Dead](https://store.steampowered.com/app/500/) |
-550 | [Left 4 Dead 2](https://store.steampowered.com/app/550/) |
-730 | [Counter-Strike: Global Offensive](https://store.steampowered.com/app/730/) |
-2400 | [The Ship](https://store.steampowered.com/app/2400/) |
-4000 | [Garry's Mod](https://store.steampowered.com/app/4000/) |
-17710 | [Nuclear Dawn](https://store.steampowered.com/app/17710/) |
-70000 | [Dino D-Day](https://store.steampowered.com/app/70000/) |
-33900 | [Arma 2](https://store.steampowered.com/app/107410/) |
+AppID  | Game | Notes |
+------ | ---- | ----- |
+x      | All HL1/HL2 games and mods |
+10     | [Counter-Strike 1.6](https://store.steampowered.com/app/10/) |
+20     | [Team Fortress Classic](https://store.steampowered.com/app/440/) |
+440    | [Team Fortress 2](https://store.steampowered.com/app/440/) |
+550    | [Left 4 Dead](https://store.steampowered.com/app/500/) |
+550    | [Left 4 Dead 2](https://store.steampowered.com/app/550/) |
+730    | [Counter-Strike: Global Offensive](https://store.steampowered.com/app/730/) |
+2400   | [The Ship](https://store.steampowered.com/app/2400/) |
+4000   | [Garry's Mod](https://store.steampowered.com/app/4000/) |
+17710  | [Nuclear Dawn](https://store.steampowered.com/app/17710/) |
+70000  | [Dino D-Day](https://store.steampowered.com/app/70000/) |
+33900  | [Arma 2](https://store.steampowered.com/app/107410/) |
 107410 | [Arma 3](https://store.steampowered.com/app/107410/) | rules are broken thanks to [devs](https://forums.bohemia.net/forums/topic/189090-source-protocol-problem-when-querying-servers/) |
 211820 | [Starbound](https://store.steampowered.com/app/211820/) | rules and players cannot be requested at the same time |
 244850 | [Space Engineers](https://store.steampowered.com/app/244850/) |
@@ -57,6 +57,7 @@ x | All HL1/HL2 games and mods |
 529180 | [Dark and Light](https://store.steampowered.com/app/529180/) |
 736220 | [Post Scriptum](https://store.steampowered.com/app/736220/) |
 834910 | [ATLAS](https://store.steampowered.com/app/834910/) |
+892970 | [Valheim](https://store.steampowered.com/app/892970/) | Server does not send rules
 
 ## Notes
 - Compression is not supported, I don't know of any games that use it
