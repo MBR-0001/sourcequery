@@ -113,11 +113,10 @@ class SourceQuery {
      * @param {boolean} autoclose 
      */
     constructor(address, port, timeout = 1000, autoclose = true) {
-        if (!address) throw new Error("Invalid address");
-
         let _port = Number(port);
 
-        if (_port == undefined || _port <= 0 || _port >= 65535 || isNaN(_port)) throw new Error("Invalid port");
+        if (!address || typeof address != "string") throw new Error("Invalid address");
+        if (_port <= 0 || _port >= 65535 || isNaN(_port)) throw new Error("Invalid port");
 
         this.address = String(address);
         this.port = _port;
@@ -247,7 +246,7 @@ class SourceQuery {
     static preflightCheck(address, port) {
         return new Promise((resolve, reject) => {
             let query = new SourceQuery(address, port);
-            query.send(Util.createInfoChallenge(ids.A2S_INFO), [ids.S2A_INFO, ids.S2A_SERVERQUERY_GETCHALLENGE]).then(() => resolve()).catch(() => reject("Preflight failed"));
+            query.send(Util.createInfoChallenge(ids.A2S_INFO), [ids.S2A_INFO, ids.S2A_SERVERQUERY_GETCHALLENGE]).then(() => resolve()).catch(() => reject());
         });
     }
 }

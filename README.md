@@ -15,16 +15,18 @@ Example usage:
 ```js
 const SourceQuery = require('sourcequery');
 
-const query = new SourceQuery('127.0.0.1', 28015, 1000, true); // 1000ms timeout, automatically close connection after last request [last 2 options are optional]
+const query = new SourceQuery('127.0.0.1', 28015]);
+//you can also provide timeout in ms [default 1000]
+//and the option to automatically close the socket after the last request [default true]
 
 query.getInfo().then(info => console.log('Server Info:', info));
 query.getPlayers().then(players => console.log('Online Players:', players));
 query.getRules().then(rules => console.log('Server Rules:', rules));
-//if autoclose is false this method has to be called to stop the query from preventing the process from exiting
-query.close();
+//if autoclose is false this method has to be called to close the socket
+//query.close();
 
 
-//in case you only want to check if the server is "alive" you can do the following
+//to check if the server is "there" you can do the following
 SourceQuery.preflightCheck('127.0.0.1', 28015).then(() => console.log("server is alive!")).catch(() => console.log("server is down!"));
 ```
 
@@ -61,5 +63,3 @@ x      | All HL1/HL2 games and mods |
 
 ## Notes
 - Compression is not supported, I don't know of any games that use it
-- ~~Player list gets fucked up if people put weird shit in their names (emojis and other weird shit)~~ FIXED IN 1.1.0
-- Since 1.0.5 steamID and gameID in getInfo are strings (they are BigInt and it cannot be JSON.stringify-d)
