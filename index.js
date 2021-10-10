@@ -1,3 +1,5 @@
+"use strict";
+
 const dgram = require("dgram");
 const EventEmitter = require("events");
 
@@ -28,8 +30,8 @@ class Answer {
      */
     add(buffer) {
         if (!this.goldsource) {
-            let total = buffer.readInt8();
-            let number = buffer.readInt8(1);
+            const total = buffer.readInt8();
+            const number = buffer.readInt8(1);
 
             if (number < 0 || number != this.parts.length) {
                 this.goldsource = true;
@@ -43,9 +45,9 @@ class Answer {
         
         else {
             //Upper 4 bits represent the number of the current packet (starting at 0) and bottom 4 bits represent the total number of packets (2 to 15).
-            let num = buffer.readInt8();
-            let number = (num & 240) / 16;
-            let total = num & 15;
+            const num = buffer.readInt8();
+            const number = (num & 240) / 16;
+            const total = num & 15;
 
             if (this.totalpackets == undefined) this.totalpackets = total;
 
@@ -71,6 +73,7 @@ class SQUnpacker extends EventEmitter {
          * @type {Record<string, Answer>}
          */
         this.answers = {};
+        
         emitter.on("message", msg => this.readMessage(msg));
     }
 
@@ -78,7 +81,7 @@ class SQUnpacker extends EventEmitter {
      * @param {Buffer} buffer 
      */
     readMessage(buffer) {
-        let header = buffer.readInt32LE();
+        const header = buffer.readInt32LE();
         buffer = buffer.slice(4);
 
         if (header == -1) {
@@ -87,7 +90,7 @@ class SQUnpacker extends EventEmitter {
         }
         
         if (header == -2) {
-            let id = buffer.readInt32LE();
+            const id = buffer.readInt32LE();
             let ans = this.answers[id];
 
             if (!ans) {
@@ -113,7 +116,7 @@ class SourceQuery {
      * @param {boolean} autoclose 
      */
     constructor(address, port, timeout = 1000, autoclose = true) {
-        let _port = Number(port);
+        const _port = Number(port);
 
         if (!address || typeof address != "string") throw new Error("Invalid address");
         if (_port <= 0 || _port >= 65535 || isNaN(_port)) throw new Error("Invalid port");
@@ -164,16 +167,16 @@ class SourceQuery {
                  * @param {Buffer} buffer 
                  * @param {boolean?} goldsource
                  */
-                let handler = (buffer, goldsource) => {
+                const handler = (buffer, goldsource) => {
                     if (buffer.length < 1) return;
 
-                    let header = String.fromCharCode(buffer[0]);
+                    const header = String.fromCharCode(buffer[0]);
                     if (!allowed_headers.includes(header) && !goldsource) return;
 
                     this.unpacker.off("message", handler);
                     clearTimeout(timer);
                     
-                    resolve({buffer: buffer.slice(1), header: header});
+                    resolve({ buffer: buffer.slice(1), header });
                     this.queryEnded();
                 };
                 
@@ -245,8 +248,8 @@ class SourceQuery {
 
     static preflightCheck(address, port) {
         return new Promise((resolve, reject) => {
-            let query = new SourceQuery(address, port);
-            query.send(Util.createInfoChallenge(ids.A2S_INFO), [ids.S2A_INFO, ids.S2A_SERVERQUERY_GETCHALLENGE]).then(() => resolve()).catch(() => reject());
+            const query = new SourceQuery(address, port);
+            query.send(Util.createInfoChallenge(ids.A2S_INFO), [ids.S2A_INFO, ids.S2A_SERVERQUERY_GETCHALLENGE]).then(() => resolve()).catch(reject);
         });
     }
 }
@@ -256,7 +259,7 @@ class Util {
      * @param {Buffer} buffer 
      */
     static parseInfoBuffer(buffer) {
-        let info = {
+        const info = {
             protocol: buffer.readInt8(),
             name: Util.getString(buffer, 1),
             map: "",
@@ -269,7 +272,8 @@ class Util {
             servertype: "",
             environment: "",
             password: false,
-            vac: false
+            vac: false,
+            version: ""
         };
 
         buffer = buffer.slice(1 + Util.byteLength(info.name));
@@ -308,7 +312,7 @@ class Util {
         buffer = buffer.slice(Util.byteLength(info.version));
 
         if (buffer.length > 1) {
-            let EDF = buffer.readInt8();
+            const EDF = buffer.readInt8();
             buffer = buffer.slice(1);
             
             if ((EDF & 0x80) !== 0) {
@@ -347,11 +351,11 @@ class Util {
      */
     static parsePlayerBuffer(buffer) {
         //we ignore the first byte (player count) because it is unreliable when there is more than 255 players
-        let players = [];
+        const players = [];
         buffer = buffer.slice(1);
 
         while (buffer.length > 0) {
-            let obj = { index: 0 };
+            const obj = { index: 0 };
             //index is broken
             buffer = buffer.slice(1);
 
@@ -378,16 +382,16 @@ class Util {
      */
     static parseRulesBuffer(buffer) {
         //we ignore first two bytes because they are useless
-        let rules = {};
+        const rules = {};
         buffer = buffer.slice(2);
         
         do {
-            let key = Util.getString(buffer);
+            const key = Util.getString(buffer);
             if (!key) break;
 
             buffer = buffer.slice(Util.byteLength(key));
 
-            let val = Util.getString(buffer);
+            const val = Util.getString(buffer);
             buffer = buffer.slice(Util.byteLength(val));
 
             rules[key] = val;
@@ -411,7 +415,7 @@ class Util {
      * @param {Buffer} buffer 
      */
     static getString(buffer, offset = 0) {
-        let length = this.getStringLength(buffer, offset);
+        const length = this.getStringLength(buffer, offset);
         if (length == -1) return "";
 
         return buffer.toString(undefined, offset, length);
@@ -422,7 +426,7 @@ class Util {
      * @param {number?} challenge_number 
      */
     static createChallenge(header, challenge_number = undefined) {
-        let buffer = Buffer.alloc(9, 0xFF);
+        const buffer = Buffer.alloc(9, 0xFF);
         buffer.writeInt8(header.charCodeAt(), 4);
 
         if (challenge_number) buffer.writeInt32LE(challenge_number, 5);
@@ -434,7 +438,7 @@ class Util {
      * @param {number} challenge_number 
      */
     static createInfoChallenge(header, challenge_number = undefined) {
-        let buffer = Buffer.alloc(challenge_number ? 29 : 25, 0xFF);
+        const buffer = Buffer.alloc(challenge_number ? 29 : 25, 0xFF);
         
         buffer.writeInt8(header.charCodeAt(), 4);
         buffer.write("Source Engine Query\0", 5);
