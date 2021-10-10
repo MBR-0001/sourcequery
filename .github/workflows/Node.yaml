@@ -23,7 +23,7 @@ jobs:
       run: npm install --dev
       
     - name: Run test
-      run: eslint .
+      run: npx eslint .
       
     env:
       CI: true
